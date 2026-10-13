@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1120">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ma bibliothèque">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Ma bibliothèque</title>
+<style>
+:root{--bg:#0b1120;--card:#141c2f;--card2:#1b2540;--line:#2a3654;--txt:#e5e9f2;--mut:#94a3b8;--acc:#38bdf8;--acc2:#22c55e;--warn:#f59e0b;--bad:#ef4444;--good:#22c55e}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:rgba(11,17,32,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+header h1{margin:0;font-size:17px;font-weight:650}
+header small{color:var(--mut)}
+#syncDot{font-size:12px;color:var(--mut);white-space:nowrap}
+main{padding:12px 12px calc(84px + env(safe-area-inset-bottom));max-width:820px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;background:#0f172a;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;min-width:0;background:none;border:0;color:var(--mut);padding:8px 1px 9px;font-size:10.5px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button span{font-size:19px;line-height:1}
+nav button.on{color:var(--acc)}
+.page{display:none}.page.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+h2{font-size:16px;margin:4px 0 10px}h3{font-size:15px;margin:0 0 6px}
+.mut{color:var(--mut)}.small{font-size:12.5px}
+label{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px}
+input,select,textarea{width:100%;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:16px;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);border-color:transparent}
+input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--acc2);padding:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid .full{grid-column:1/-1}
+@media(min-width:620px){.grid{grid-template-columns:repeat(3,1fr)}}
+.btn{background:var(--acc);color:#04121d;border:0;border-radius:10px;padding:11px 14px;font-weight:650;font-size:15px}
+.btn:disabled{opacity:.55}
+.btn.sec{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
+.btn.bad{background:#3b1418;color:#fca5a5;border:1px solid #7f1d1d}
+.btn.sm{padding:6px 10px;font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:12px;margin:2px 3px 0 0}
+.tag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:600;background:#1e3a5f;color:#bae6fd}
+.tag.Manga{background:#4a1d3a;color:#fbcfe8}.tag.BD{background:#3a2a0a;color:#fcd34d}.tag.Autre{background:#2a2a40;color:#c7d2fe}
+.tag.envie{background:#3a2a0a;color:#fcd34d;border:1px solid #92400e}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--card2);border-radius:10px;padding:8px;text-align:center}
+.kpi b{display:block;font-size:17px}.kpi small{color:var(--mut);font-size:11.5px}
+.hero{background:linear-gradient(135deg,#0f2a3a,#1b2540);border:1px solid #1e5d7c;border-radius:14px;padding:14px;margin-bottom:12px;display:flex;align-items:center;gap:14px}
+.hero .big{font-size:46px;font-weight:800;line-height:1;color:var(--acc);min-width:62px;text-align:center}
+.bar{height:10px;background:var(--card2);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc2)}
+.green{color:var(--good)}.red{color:var(--bad)}.orange{color:var(--warn)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl th{color:var(--mut);font-weight:600;background:var(--card)}
+.tbl tr.cur td{background:#0f2a3a;color:var(--acc);font-weight:700}
+.tbl tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+.scroll{overflow-x:auto}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.bk{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line);align-items:center}
+.bk:first-child{border-top:0}
+.cov{width:46px;height:66px;flex:none;border-radius:6px;background:var(--card2);border:1px solid var(--line);object-fit:cover;display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden}
+.bk .b{flex:1;min-width:0;cursor:pointer}
+.bk .t{font-weight:650;overflow:hidden;text-overflow:ellipsis}
+.bk .acts{display:flex;flex-direction:column;align-items:center;gap:4px}
+.bk.read .t::after{content:" ✓";color:var(--good)}
+.lu{display:flex;flex-direction:column;align-items:center;font-size:10.5px;color:var(--mut);gap:1px;margin:0}
+.stars{color:#fbbf24;letter-spacing:1px;font-size:12.5px}
+.rate{display:flex;gap:4px}
+.rate button{background:var(--card2);border:1px solid var(--line);border-radius:8px;color:#475569;font-size:22px;padding:4px 8px;line-height:1}
+.rate button.on{color:#fbbf24}
+.iconbtn{background:none;border:0;color:var(--mut);font-size:16px;padding:4px}
+.toast{pointer-events:none;max-width:92vw;text-align:center;position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#0f2a3a;border:1px solid var(--acc);color:var(--txt);padding:9px 14px;border-radius:10px;z-index:30;display:none}
+.flt{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.flt select{padding:7px 8px;font-size:14px}
+@media(min-width:620px){.flt{grid-template-columns:repeat(4,1fr)}}
+.ser{padding:10px 0;border-top:1px solid var(--line)}
+.ser:first-child{border-top:0}
+.vols{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.vol{min-width:38px;padding:5px 6px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:13px;text-align:center}
+.vol.read{background:#123d26;border-color:#166534;color:#bbf7d0}
+.vol.envie{border-style:dashed;color:#fcd34d}
+.vol.miss{background:none;border-style:dashed;color:#64748b}
+.coverbox{display:flex;gap:10px;align-items:flex-start}
+.coverbox img{width:80px;height:116px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:var(--card2)}
+#scanner{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px}
+#scanner video{width:100%;max-width:520px;border-radius:12px;background:#000}
+#scanner .frame{position:relative;width:100%;max-width:520px}
+#scanner .frame::after{content:"";position:absolute;left:10%;right:10%;top:40%;height:20%;border:2px solid var(--acc);border-radius:10px}
+details summary{cursor:pointer;color:var(--acc)}
+a{color:var(--acc)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header><div><h1>📚 Ma bibliothèque</h1><small id="hdrSub">Livres, mangas &amp; BD</small></div><span id="syncDot"></span></header>
+<main>
+
+<!-- ACCUEIL -->
+<section class="page on" id="p-home">
+  <div class="hero" id="heroMonth"></div>
+  <div class="card"><div class="kpis" id="kpiHome"></div></div>
+  <div class="row" style="margin-bottom:12px">
+    <button class="btn" id="btnHomeAdd" style="flex:1">➕ Ajouter</button>
+    <button class="btn sec" id="btnHomeScan" style="flex:1">📷 Scanner un ISBN</button>
+  </div>
+  <div class="card"><h2>Derniers lus</h2><div id="homeRead"></div></div>
+  <div class="card"><h2>Ajouts récents</h2><div id="homeAdded"></div></div>
+</section>
+
+<!-- BIBLIOTHEQUE -->
+<section class="page" id="p-lib">
+  <div class="card">
+    <input id="q" type="search" placeholder="🔎 Rechercher titre, auteur, série, ISBN…" autocomplete="off">
+    <div class="flt">
+      <select id="fType" aria-label="Type"></select>
+      <select id="fRead" aria-label="Lecture"><option value="">Lus et non lus</option><option value="1">Lus</option><option value="0">Non lus</option></select>
+      <select id="fStatus" aria-label="Statut"><option value="">Tous statuts</option><option value="possede">Possédés</option><option value="envie">Liste d’envies</option></select>
+      <select id="fSeries" aria-label="Série"></select>
+      <select id="fSort" aria-label="Tri"><option value="added">Tri : ajouts récents</option><option value="title">Tri : titre</option><option value="author">Tri : auteur</option><option value="series">Tri : série et tome</option><option value="read">Tri : date de lecture</option><option value="rating">Tri : note</option></select>
+    </div>
+    <div class="row small mut" style="margin-top:8px;justify-content:space-between"><span id="libCount"></span><button class="btn sec sm" id="btnClearF">Effacer les filtres</button></div>
+  </div>
+  <div class="card"><div id="libList"></div></div>
+</section>
+
+<!-- AJOUT / EDITION -->
+<section class="page" id="p-add">
+  <div class="card">
+    <h2 id="formTitle">Ajouter</h2>
+    <form id="fBook" autocomplete="off">
+      <input type="hidden" id="f_id">
+      <div class="grid">
+        <div class="full"><label for="f_isbn">ISBN (remplissage automatique)</label>
+          <div class="row"><input id="f_isbn" inputmode="numeric" placeholder="978…" style="flex:1;min-width:140px"><button type="button" class="btn sec" id="btnLookup" aria-label="Rechercher l’ISBN">🔎</button><button type="button" class="btn sec" id="btnScan" aria-label="Scanner le code-barres">📷</button></div>
+          <div id="lookupMsg" class="small mut" style="margin-top:4px"></div></div>
+        <div><label for="f_type">Type</label><select id="f_type"></select></div>
+        <div><label for="f_status">Statut</label><select id="f_status"><option value="possede">Possédé</option><option value="envie">Liste d’envies</option></select></div>
+        <div class="full"><label for="f_title">Titre</label><input id="f_title" placeholder="(facultatif pour un tome de série)"></div>
+        <div class="full"><label for="f_author">Auteur</label><input id="f_author" list="dlAuthors"></div>
+        <div><label for="f_series">Série</label><input id="f_series" list="dlSeries" placeholder="ex. One Piece"></div>
+        <div id="w_vol"><label for="f_volume">Tome n°</label><input id="f_volume" inputmode="decimal"></div>
+        <div class="full" id="w_range">
+          <label style="display:flex;gap:8px;align-items:center;color:var(--txt)"><input type="checkbox" id="f_multi"> Ajouter plusieurs tomes d’un coup</label>
+          <div class="row hidden" id="w_range2" style="margin-top:6px"><span class="mut">Tomes</span><input id="f_from" inputmode="numeric" style="width:80px" placeholder="1"><span class="mut">à</span><input id="f_to" inputmode="numeric" style="width:80px" placeholder="20"><span id="rangeInfo" class="small mut"></span></div>
+        </div>
+        <div><label for="f_genre">Genre</label><input id="f_genre" list="dlGenres"></div>
+        <div class="full"><label>Couverture</label>
+          <div class="coverbox"><img id="f_coverImg" alt="" class="hidden" referrerpolicy="no-referrer">
+            <div style="flex:1;min-width:0"><input id="f_cover" placeholder="URL https://… (remplie par l’ISBN)" autocapitalize="off" spellcheck="false">
+              <div class="row" style="margin-top:6px"><label class="btn sec sm" style="margin:0;color:var(--txt)">📷 Photo<input type="file" id="f_coverFile" accept="image/*" capture="environment" class="hidden"></label><button type="button" class="btn sec sm" id="btnCoverClear">Effacer</button></div></div></div></div>
+        <div class="full"><div class="row"><label style="display:flex;gap:8px;align-items:center;color:var(--txt);margin:0"><input type="checkbox" id="f_read"> Lu</label>
+          <div id="w_date" style="flex:1;min-width:150px" class="hidden"><input type="date" id="f_dateRead" aria-label="Date de lecture"></div></div>
+          <div class="small mut" id="dateHint" style="margin-top:3px"></div></div>
+        <div class="full"><label>Note</label><div class="rate" id="f_rate"></div></div>
+        <div class="full"><label for="f_notes">Notes</label><textarea id="f_notes" rows="2"></textarea></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" type="submit" id="btnSave">Enregistrer</button>
+        <button class="btn sec" type="button" id="btnCancel">Annuler</button>
+        <button class="btn bad hidden" type="button" id="btnDel">Supprimer</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- SERIES -->
+<section class="page" id="p-series">
+  <div class="card">
+    <input id="qs" type="search" placeholder="🔎 Rechercher une série" autocomplete="off">
+    <div class="flt"><select id="fsType" aria-label="Type"></select><select id="fsState" aria-label="État"><option value="">Toutes les séries</option><option value="cours">À lire (non terminées)</option><option value="fini">Tout lu</option><option value="miss">Tomes manquants</option></select></div>
+  </div>
+  <div class="card"><div id="serList"></div></div>
+  <p class="small mut" style="text-align:center">Touche un tome pour le marquer lu / non lu. Pointillés : tome manquant (gris) ou en liste d’envies (jaune).</p>
+</section>
+
+<!-- STATS -->
+<section class="page" id="p-stats">
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">Lectures par mois</h2><select id="stPeriod" style="width:auto;padding:6px 8px;font-size:14px" aria-label="Période"></select></div>
+    <div class="kpis" id="stKpi" style="margin-top:10px"></div>
+    <div class="chart" id="chMonth" style="margin-top:8px"></div>
+    <div class="scroll" id="tblMonth" style="margin-top:8px"></div>
+    <p class="small mut" style="margin:6px 0 0">Basé sur la <b>date de lecture</b>. Les livres marqués « Lu » sans date ne sont pas comptés ici.</p>
+  </div>
+  <div class="card"><h3>Totaux par année</h3><div class="scroll" id="tblYear"></div></div>
+  <div class="card"><h3>Bibliothèque</h3><div class="kpis" id="stTot"></div><div class="scroll" id="tblType" style="margin-top:10px"></div></div>
+</section>
+<!-- DONNEES -->
+<section class="page" id="p-data">
+  <div class="card">
+    <h2>Sauvegarde</h2>
+    <p class="small mut">Les données restent sur cet appareil (stockage local du navigateur) et, si tu l’actives, dans ton gist GitHub secret. Exporte de temps en temps un fichier JSON.</p>
+    <div class="row">
+      <button class="btn" id="btnExpJson">Exporter JSON</button>
+      <button class="btn sec" id="btnExpCsv">Exporter CSV (livres)</button>
+      <button class="btn sec" id="btnExpCsvM">Exporter CSV (lectures/mois)</button>
+    </div>
+    <div style="margin-top:12px">
+      <label for="impFile">Importer un fichier JSON (sauvegarde) ou CSV (une ligne par livre)</label>
+      <input type="file" id="impFile" accept="application/json,.json,text/csv,.csv">
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--txt)"><input type="checkbox" id="impReplace"> Remplacer les données de cet appareil (sinon : fusion, rien n’est perdu)</label>
+    </div>
+    <details class="small" style="margin-top:10px"><summary>Format CSV accepté</summary>
+      <p class="mut">Séparateur « ; » ou « , ». Colonnes reconnues (ligne d’en-tête obligatoire, ordre libre) : <code>Type ; Titre ; Auteur ; Série ; Tome ; ISBN ; Genre ; Statut ; Lu ; Date lu ; Note ; Notes ; Couverture ; ID</code>. Type = Livre, Manga, BD ou Autre ; Statut = Possédé ou Liste d’envies ; Lu = oui/non ; Date lu = JJ/MM/AAAA ou AAAA-MM-JJ. Avec la colonne ID (présente dans l’export), les livres existants sont mis à jour au lieu d’être dupliqués.</p></details>
+  </div>
+  <div class="card" id="syncCard">
+    <h2>Synchronisation (GitHub Gist privé)</h2>
+    <p class="small mut" style="margin-top:0">Partage la bibliothèque entre tes téléphones, ta tablette et tes ordinateurs via un gist secret sur ton compte GitHub. Fusion automatique : rien n’est écrasé, les suppressions sont reportées. Le même jeton que pour <b>Suivi Montagne</b> fonctionne (fichier séparé <code>ma-bibliotheque-data.json</code>).</p>
+    <div id="syncLast" class="small"></div>
+    <div id="syncTokenState" class="small mut"></div>
+    <div id="syncGist" class="small mut"></div>
+    <div id="syncMsg" class="small mut" style="margin:6px 0"></div>
+    <button class="btn sec sm hidden" id="btnTokReuse" type="button" style="margin-bottom:8px">🔑 Utiliser le jeton déjà enregistré dans Suivi Montagne</button>
+    <label for="syncToken">Jeton GitHub (scope « gist » uniquement)</label>
+    <div class="row"><input id="syncToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_… ou github_pat_…" style="flex:1"><button class="btn sec sm" id="btnTokShow" type="button" aria-label="Afficher le jeton">👁️</button></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="btnTokSave">Enregistrer et synchroniser</button>
+      <button class="btn sec" id="btnSync">Synchroniser</button>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--txt)"><input type="checkbox" id="syncAuto" style="width:20px;height:20px"> Synchroniser automatiquement (à l’ouverture, au retour dans l’app et après chaque modification)</label>
+    <div class="row" style="margin-top:8px"><button class="btn bad sm" id="btnTokForget">Oublier le jeton</button></div>
+    <details style="margin-top:10px" class="small"><summary>Comment ça marche / créer le jeton</summary>
+      <p><b>Tu as déjà un jeton pour Suivi Montagne ?</b> Réutilise-le : colle-le ici (ou touche le bouton 🔑 s’il apparaît) puis « Enregistrer et synchroniser ». Un second gist secret, <code>ma-bibliotheque-data.json</code>, est créé à côté de celui de Suivi Montagne ; les deux apps ne se mélangent pas.</p>
+      <p><b>Sinon, créer un jeton (2 minutes) :</b></p>
+      <ol style="padding-left:18px;margin:8px 0">
+        <li>Ouvre ce lien en étant connecté à GitHub : <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Ma%20biblioth%C3%A8que" target="_blank" rel="noopener">créer un jeton « Ma bibliothèque »</a>.</li>
+        <li>La note et la case <b>gist</b> sont déjà remplies. <b>Ne coche rien d’autre.</b></li>
+        <li><b>Expiration</b> : « No expiration » (ou 1 an ; il faudra alors refaire un jeton à l’échéance).</li>
+        <li>Tout en bas, clique sur le bouton vert <b>Generate token</b>.</li>
+        <li>Copie le jeton (il commence par <code>ghp_</code>). GitHub ne l’affiche qu’une fois : garde-le dans ton gestionnaire de mots de passe.</li>
+        <li>Colle-le ici puis touche <b>Enregistrer et synchroniser</b>. Le premier appareil crée le gist secret.</li>
+        <li>Sur chacun de tes autres appareils (2 téléphones, tablette, 2 ordinateurs) : ouvre l’app → 💾 Données → colle <b>le même jeton</b> → Enregistrer et synchroniser. Le gist est retrouvé et les données fusionnées.</li>
+      </ol>
+      <p class="mut"><b>Fusion :</b> chaque livre a un identifiant ; si le même livre a été modifié sur deux appareils, la modification la plus récente gagne. Une suppression est mémorisée et reportée partout. Hors ligne, tout fonctionne : la synchro se fera dès le retour d’internet.</p>
+      <p class="mut"><b>Sécurité :</b> le jeton reste sur l’appareil et n’est envoyé qu’à api.github.com. Il ne donne accès qu’à tes gists et n’est jamais inclus dans les exports. Pour le révoquer : github.com → Settings → Developer settings → Personal access tokens. Un jeton « fine-grained » marche aussi s’il a uniquement la permission « Gists : Read and write ».</p>
+    </details>
+  </div>
+  <div class="card small">
+    <h2>Aide</h2>
+    <details><summary>Ajouter un livre avec l’ISBN ou le code-barres</summary>
+      <p class="mut">L’ISBN est le numéro à 13 chiffres sous le code-barres (978… ou 979…). Tape-le puis 🔎 : titre, auteur et couverture sont remplis via Open Library, puis Google Books. Le bouton 📷 scanne le code-barres avec la caméra sur les navigateurs qui le permettent (Chrome sur Android, Chrome/Edge sur ordinateur). Sur iPhone/iPad (Safari) le scan n’est pas disponible : tape simplement l’ISBN. La recherche ISBN demande internet.</p></details>
+    <details><summary>Mangas : ajouter toute une série</summary>
+      <p class="mut">Choisis le type Manga, indique la série (ex. One Piece) et l’auteur, coche « Ajouter plusieurs tomes d’un coup » puis tomes 1 à 20. Les tomes déjà présents sont ignorés. Dans 🗂️ Séries, touche un tome pour le marquer lu et fixe le nombre total de tomes pour voir ceux qui manquent.</p></details>
+    <details><summary>Lectures par mois</summary>
+      <p class="mut">Cocher « Lu » met la date du jour ; tu peux la changer dans la fiche (ou l’effacer pour un livre lu il y a longtemps : il compte alors dans le total des lus mais pas dans les statistiques mensuelles).</p></details>
+    <details><summary>Installer sur l’écran d’accueil</summary>
+      <p class="mut">Android/Chrome : menu ⋮ → « Ajouter à l’écran d’accueil » / « Installer l’application ». iPhone/iPad : bouton Partager → « Sur l’écran d’accueil ». Ordinateur : icône d’installation dans la barre d’adresse. L’app fonctionne ensuite hors ligne.</p></details>
+  </div>
+  <div class="card">
+    <h2>Tout effacer sur cet appareil</h2>
+    <p class="small mut">Vide la bibliothèque de cet appareil uniquement (si la synchronisation est active, la prochaine synchro récupérera les données du gist).</p>
+    <button class="btn bad" id="btnReset">Effacer les données locales</button>
+  </div>
+  <p class="small mut" style="text-align:center" id="verInfo"></p>
+</section>
+</main>
+
+<nav>
+  <button data-p="home" class="on"><span>🏠</span>Accueil</button>
+  <button data-p="lib"><span>📚</span>Biblio</button>
+  <button data-p="add"><span>➕</span>Ajouter</button>
+  <button data-p="series"><span>🗂️</span>Séries</button>
+  <button data-p="stats"><span>📊</span>Stats</button>
+  <button data-p="data"><span>💾</span>Données</button>
+</nav>
+<div id="scanner"><div class="frame"><video id="scanVideo" playsinline muted></video></div><div id="scanMsg" class="mut small">Place le code-barres dans le cadre…</div><button class="btn sec" id="btnScanClose">Fermer</button></div>
+<div class="toast" id="toast"></div>
+<datalist id="dlSeries"></datalist><datalist id="dlAuthors"></datalist><datalist id="dlGenres"></datalist>
+<script>
+'use strict';
+const KEY = 'maBibliotheque.v1';
+const DATA_VERSION = 1;
+const APP_VERSION = '1.0';
+const TYPES = ['Livre','Manga','BD','Autre'];
+const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
+const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
+const GENRES = ['Roman','Policier','Thriller','Science-fiction','Fantasy','Horreur','Historique','Biographie','Essai','Développement personnel','Jeunesse','Humour','Shōnen','Seinen','Shōjo','Josei','Isekai','Comics','Documentaire','Cuisine','Voyage'];
+const CAT = b => b.type==='Livre'?'livres':b.type==='Manga'?'mangas':'autres';
+const CAT_LBL = {livres:'Livres',mangas:'Mangas',autres:'BD / Autre'};
+const CAT_COL = {livres:'#38bdf8',mangas:'#f472b6',autres:'#f59e0b'};
+
+/* ---------- Utils ---------- */
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function num(v){ if(v==null) return null; v=String(v).trim().replace(/\s/g,'').replace(',','.'); if(v==='') return null; const n=+v; return isNaN(n)?NaN:n; }
+const nf = (d=1)=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:d,minimumFractionDigits:0});
+function f(n,d=1){ return (n==null||isNaN(n)||!isFinite(n))?'–':nf(d).format(n); }
+function dFR(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return d+'/'+m+'/'+y; }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function todayISO(){ return toISO(new Date()); }
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const MOIS_L=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const ymLabel=ym=>{ const [y,m]=ym.split('-'); return MOIS[+m-1]+' '+y; };
+const ymAdd=(ym,k)=>{ let [y,m]=ym.split('-').map(Number); m+=k; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+'-'+String(m).padStart(2,'0'); };
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display='none',2600); }
+const $=id=>document.getElementById(id);
+const coll=new Intl.Collator('fr',{numeric:true,sensitivity:'base'});
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const serKey=s=>norm(s).replace(/\s+/g,' ');
+function safeImg(u){ u=String(u||'').trim(); return (/^https:\/\/[^\s"'<>]+$/i.test(u)||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u))?u:''; }
+const stars=r=>r?'★'.repeat(r)+'☆'.repeat(5-r):'';
+function isoDate(s){ s=String(s||'').trim(); if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; const m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/); if(m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); return ''; }
+function bookLabel(b){ return b.title || (b.series? b.series+(b.volume!=null?' – Tome '+f(b.volume,1):'') : 'Sans titre'); }
+
+/* ---------- Modèle ---------- */
+// Livre : {id,type,title,author,series,volume,isbn,cover,genre,status:'possede'|'envie',read,dateRead,rating,notes,addedAt,updatedAt}
+function emptyDB(){ return {version:DATA_VERSION, books:[], series:{}, tomb:{b:{}}}; }
+function normBook(b){
+  const o=Object.assign({},b);
+  o.id = typeof o.id==='string'&&o.id? o.id : uid();
+  o.type = TYPES.includes(o.type)? o.type : 'Autre';
+  for(const k of ['title','author','series','isbn','cover','genre','notes']) o[k]=o[k]==null?'':String(o[k]).trim();
+  const v=num(o.volume); o.volume=(v==null||isNaN(v))?null:v;
+  o.status = o.status==='envie'?'envie':'possede';
+  o.read = !!o.read; o.dateRead = o.read? isoDate(o.dateRead) : '';
+  const r=Math.round(+o.rating); o.rating=(r>=1&&r<=5)?r:null;
+  if(typeof o.addedAt!=='number') o.addedAt=Date.now();
+  if(typeof o.updatedAt!=='number') o.updatedAt=1;
+  return o;
+}
+/* Migration non destructive (versions futures) : ne supprime rien de ce que l'utilisateur a saisi. */
+function migrate(db){
+  const log=[]; db.version=db.version||1;
+  if(!Array.isArray(db.books)) db.books=[];
+  if(!db.series||typeof db.series!=='object') db.series={};
+  db.tomb=Object.assign({b:{}},db.tomb||{});
+  db.books=db.books.filter(b=>b&&typeof b==='object').map(normBook);
+  for(const [k,s] of Object.entries(db.series)){ if(!s||typeof s!=='object'){ delete db.series[k]; continue; } if(typeof s.updatedAt!=='number') s.updatedAt=1; }
+  // Exemple pour une future version : if(db.version<2){ …transformation… ; log.push('…'); }
+  db.version=Math.max(db.version,DATA_VERSION);
+  return log;
+}
+
+/* ---------- Fusion (synchronisation) ---------- */
+// Règle : pour chaque élément (même id), la version la plus récente (updatedAt) gagne ; à égalité, la version distante.
+// Une suppression (pierre tombale) l'emporte sur toute version modifiée avant ou au moment de la suppression.
+function mergeDB(L,R){
+  const tomb={b:{}};
+  for(const src of [L.tomb,R.tomb]) for(const [id,ts] of Object.entries((src&&src.b)||{})) tomb.b[id]=Math.max(tomb.b[id]||0,+ts||0);
+  const ts=x=>x&&typeof x.updatedAt==='number'?x.updatedAt:0;
+  const pick=(a,b)=>!a?b:!b?a:(ts(b)>=ts(a)?b:a);
+  const alive=x=>!(tomb.b[x.id]!=null && tomb.b[x.id]>=ts(x));
+  const m=new Map(); for(const b of L.books||[]) m.set(b.id,b); for(const b of R.books||[]) m.set(b.id,pick(m.get(b.id),b));
+  const books=[...m.values()].filter(alive).map(b=>Object.assign({},b));
+  const series={}; const keys=new Set([...Object.keys(L.series||{}),...Object.keys(R.series||{})]);
+  for(const k of keys){ const v=pick((L.series||{})[k],(R.series||{})[k]); if(v) series[k]=Object.assign({},v); }
+  return Object.assign({},R,L,{version:Math.max(L.version||1,R.version||1,DATA_VERSION),books,series,tomb});
+}
+
+/* ---------- Store ---------- */
+let DB;
+function load(){ try{ const r=localStorage.getItem(KEY); DB=r?JSON.parse(r):null; }catch(e){ DB=null; }
+  if(!DB||typeof DB!=='object'||!Array.isArray(DB.books)){ DB=emptyDB(); save(); return; }
+  if((DB.version||1)<DATA_VERSION){ try{ localStorage.setItem(KEY+'.backup.v'+(DB.version||1),JSON.stringify(DB)); }catch(e){} }
+  const log=migrate(DB); save(); if(log.length) setTimeout(()=>toast('Mise à jour des données : '+log.join(' · ')),400); }
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(DB)); }catch(e){ toast('Stockage plein : supprime des photos de couverture ou exporte tes données.'); } }
+function commit(){ save(); scheduleSync(); }
+const getBook=id=>DB.books.find(b=>b.id===id);
+function setRead(b,val){ b.read=!!val; b.dateRead=val?(b.dateRead||todayISO()):''; b.updatedAt=Date.now(); }
+
+/* ---------- Agrégats ---------- */
+function readsIn(ym){ return DB.books.filter(b=>b.read&&b.dateRead&&b.dateRead.slice(0,7)===ym); }
+function countCat(list){ const r={livres:0,mangas:0,autres:0,total:list.length}; list.forEach(b=>r[CAT(b)]++); return r; }
+function seriesGroups(){
+  const g=new Map();
+  for(const b of DB.books){ if(!b.series) continue; const k=serKey(b.series); if(!g.has(k)) g.set(k,{key:k,name:b.series,books:[],types:{}}); const x=g.get(k); x.books.push(b); x.types[b.type]=(x.types[b.type]||0)+1; }
+  const out=[...g.values()].map(x=>{ x.books.sort((a,b)=>(a.volume??1e9)-(b.volume??1e9)||coll.compare(bookLabel(a),bookLabel(b)));
+    x.type=Object.entries(x.types).sort((a,b)=>b[1]-a[1])[0][0];
+    x.author=(x.books.find(b=>b.author)||{}).author||'';
+    const meta=DB.series[x.key]||{}; x.total=meta.total||null;
+    const vols=x.books.filter(b=>b.volume!=null&&Number.isInteger(b.volume));
+    const maxV=Math.max(0,...vols.map(b=>b.volume)); x.maxVol=Math.max(maxV,x.total||0);
+    const have=new Set(vols.map(b=>b.volume)); x.missing=[]; for(let i=1;i<=x.maxVol;i++) if(!have.has(i)) x.missing.push(i);
+    x.owned=x.books.filter(b=>b.status==='possede').length; x.wish=x.books.length-x.owned;
+    x.read=x.books.filter(b=>b.read).length; x.den=Math.max(x.books.length,x.total||0);
+    return x; });
+  return out.sort((a,b)=>coll.compare(a.name,b.name));
+}
+
+/* ---------- Graphique (barres empilées) ---------- */
+function stackChart(el,labels,stacks,hi){
+  const W=420,H=230,L=30,R=10,T=16,B=40; const iw=W-L-R, ih=H-T-B; const n=labels.length||1;
+  const tot=labels.map((_,i)=>stacks.reduce((t,s)=>t+(s.values[i]||0),0)); const hiV=Math.max(1,...tot);
+  const step=Math.max(1,Math.ceil(hiV/4)); const mx=step*4;
+  const y=v=>T+ih-v/mx*ih; const xc=i=>L+iw*(i+0.5)/n; const bw=Math.min(26,iw/n*0.68);
+  let g=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Lectures par mois" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" font-size="11.5">`;
+  for(let k=0;k<=4;k++){ const yy=T+ih*k/4; g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="#2a3654"/><text x="${L-6}" y="${yy+4}" text-anchor="end" fill="#94a3b8">${mx-step*k}</text>`; }
+  labels.forEach((lb,i)=>{ let acc=0; const x=xc(i)-bw/2;
+    if(i===hi) g+=`<rect x="${(xc(i)-iw/n/2+1).toFixed(1)}" y="${T}" width="${(iw/n-2).toFixed(1)}" height="${ih}" fill="#38bdf8" opacity=".09" rx="4"/>`;
+    stacks.forEach(s=>{ const v=s.values[i]||0; if(!v) return; const y0=y(acc), y1=y(acc+v); acc+=v;
+      g+=`<rect x="${x.toFixed(1)}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}" height="${(y0-y1).toFixed(1)}" fill="${s.color}"><title>${esc(lb)} – ${esc(s.name)} : ${v}</title></rect>`; });
+    if(tot[i]) g+=`<text x="${xc(i).toFixed(1)}" y="${(y(tot[i])-4).toFixed(1)}" text-anchor="middle" fill="${i===hi?'#38bdf8':'#e5e9f2'}" font-weight="700">${tot[i]}</text>`;
+    g+=`<text x="${xc(i).toFixed(1)}" y="${H-B+15}" text-anchor="middle" fill="${i===hi?'#38bdf8':'#cbd5e1'}" font-weight="${i===hi?700:400}">${esc(lb.split(' ')[0])}</text>`;
+    if(i===0||lb.startsWith('janv')) g+=`<text x="${xc(i).toFixed(1)}" y="${H-B+29}" text-anchor="middle" fill="#64748b" font-size="10">${esc(lb.split(' ')[1]||'')}</text>`; });
+  g+='</svg><div class="legend">'+stacks.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')+'</div>';
+  el.innerHTML=g;
+}
+
+/* ---------- Rendu : élément de liste ---------- */
+function coverHTML(b){ const u=safeImg(b.cover); return u?`<img class="cov" src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-ic="${TYPE_ICON[b.type]||'📄'}">`:`<div class="cov">${TYPE_ICON[b.type]||'📄'}</div>`; }
+function bookRow(b,opt={}){
+  const chips=[ b.series?'🗂️ '+esc(b.series)+(b.volume!=null?' · T'+f(b.volume,1):''):null, b.genre?esc(b.genre):null,
+    b.read?(b.dateRead?'lu le '+dFR(b.dateRead):'lu'):null, b.isbn&&opt.isbn?'ISBN '+esc(b.isbn):null ].filter(Boolean);
+  return `<div class="bk${b.read?' read':''}" data-id="${esc(b.id)}">${coverHTML(b)}
+    <div class="b" data-act="edit"><div class="t">${esc(bookLabel(b))}</div><div class="small mut">${esc(b.author||'')}</div>
+      <div><span class="tag ${b.type}">${b.type}</span>${b.status==='envie'?' <span class="tag envie">Envie</span>':''} ${b.rating?`<span class="stars">${stars(b.rating)}</span>`:''}</div>
+      <div>${chips.map(c=>`<span class="chip">${c}</span>`).join('')}</div></div>
+    <div class="acts"><label class="lu"><input type="checkbox" data-act="read" ${b.read?'checked':''} aria-label="Lu">Lu</label>
+      ${b.status==='envie'?'<button class="iconbtn" data-act="buy" title="Je l’ai acheté" aria-label="Passer en possédé">🛒</button>':''}
+      <button class="iconbtn" data-act="del" aria-label="Supprimer">🗑️</button></div></div>`;
+}
+function listClick(e){
+  const row=e.target.closest('[data-id]'); if(!row) return; const b=getBook(row.dataset.id); if(!b) return;
+  const a=e.target.closest('[data-act]'); const act=a&&a.dataset.act;
+  if(act==='read'){ setRead(b,a.checked); commit(); toast(b.read?('« '+bookLabel(b)+' » lu le '+dFR(b.dateRead)+' (date modifiable dans la fiche)'):'Marqué non lu'); renderAll(); }
+  else if(act==='buy'){ b.status='possede'; b.updatedAt=Date.now(); commit(); toast('Passé en « Possédé »'); renderAll(); }
+  else if(act==='del'){ delBook(b); }
+  else if(act==='edit'){ fillForm(b); show('add'); }
+}
+function delBook(b){ if(!confirm('Supprimer « '+bookLabel(b)+' » ?')) return false; DB.books=DB.books.filter(x=>x.id!==b.id); DB.tomb.b[b.id]=Date.now(); commit(); renderAll(); toast('Supprimé'); return true; }
+
+/* ---------- Accueil ---------- */
+function renderHome(){
+  const ym=todayISO().slice(0,7), y=ym.slice(0,4); const c=countCat(readsIn(ym)); const prev=readsIn(ymAdd(ym,-1)).length;
+  const yr=DB.books.filter(b=>b.read&&b.dateRead.startsWith(y)).length;
+  $('heroMonth').innerHTML=`<div class="big" id="heroCount">${c.total}</div><div><div style="font-weight:700;font-size:16px">lu${c.total>1?'s':''} en ${MOIS_L[+ym.slice(5)-1]} ${y}</div>
+    <div class="small">${c.livres} livre${c.livres>1?'s':''} · ${c.mangas} manga${c.mangas>1?'s':''}${c.autres?' · '+c.autres+' BD/autre':''}</div>
+    <div class="small mut">Mois dernier : ${prev} · Total ${y} : ${yr}</div></div>`;
+  const own=DB.books.filter(b=>b.status==='possede'); const ownR=own.filter(b=>b.read).length; const rd=DB.books.filter(b=>b.read).length;
+  $('kpiHome').innerHTML=[['possédés',own.length],['lus',rd],['% lus (possédés)',own.length?f(ownR/own.length*100,0)+' %':'–'],['livres',DB.books.filter(b=>b.type==='Livre').length],['mangas',DB.books.filter(b=>b.type==='Manga').length],['liste d’envies',DB.books.length-own.length]]
+    .map(([k,v])=>`<div class="kpi"><b>${v}</b><small>${k}</small></div>`).join('');
+  const lr=DB.books.filter(b=>b.read&&b.dateRead).sort((a,b)=>b.dateRead.localeCompare(a.dateRead)||b.updatedAt-a.updatedAt).slice(0,5);
+  $('homeRead').innerHTML=lr.length?lr.map(b=>bookRow(b)).join(''):'<p class="mut small">Aucune lecture datée pour l’instant. Coche « Lu » sur un livre.</p>';
+  const la=DB.books.slice().sort((a,b)=>b.addedAt-a.addedAt).slice(0,5);
+  $('homeAdded').innerHTML=la.length?la.map(b=>bookRow(b)).join(''):'<p class="mut small">Bibliothèque vide : touche ➕ Ajouter ou scanne un ISBN.</p>';
+}
+
+/* ---------- Bibliothèque ---------- */
+function libFiltered(){
+  const q=norm($('q').value), t=$('fType').value, r=$('fRead').value, s=$('fStatus').value, se=$('fSeries').value, so=$('fSort').value;
+  let l=DB.books.filter(b=>(!t||b.type===t)&&(r===''||(b.read?'1':'0')===r)&&(!s||b.status===s)&&(!se||(se==='__none'?!b.series:serKey(b.series)===se)));
+  if(q){ const words=q.split(/\s+/); l=l.filter(b=>{ const h=norm([bookLabel(b),b.author,b.series,b.isbn,b.genre,b.notes,b.volume!=null?'t'+b.volume+' tome '+b.volume:''].join(' ')); return words.every(w=>h.includes(w)); }); }
+  const bySer=(a,b)=>coll.compare(a.series||'~',b.series||'~')||(a.volume??1e9)-(b.volume??1e9)||coll.compare(bookLabel(a),bookLabel(b));
+  const cmp={added:(a,b)=>b.addedAt-a.addedAt||bySer(a,b), title:(a,b)=>coll.compare(bookLabel(a),bookLabel(b)), author:(a,b)=>coll.compare(a.author||'~',b.author||'~')||bySer(a,b),
+    series:bySer, read:(a,b)=>(b.dateRead||'').localeCompare(a.dateRead||'')||bySer(a,b), rating:(a,b)=>(b.rating||0)-(a.rating||0)||coll.compare(bookLabel(a),bookLabel(b))}[so]||bySer;
+  return l.sort(cmp);
+}
+const LIB_PAGE=150; let libLimit=LIB_PAGE;
+function renderLib(){
+  const sel=$('fSeries').value; const groups=seriesGroups();
+  $('fSeries').innerHTML='<option value="">Toutes séries</option><option value="__none">Hors série</option>'+groups.map(g=>`<option value="${esc(g.key)}">${esc(g.name)} (${g.books.length})</option>`).join('');
+  $('fSeries').value=groups.some(g=>g.key===sel)||sel==='__none'?sel:'';
+  const l=libFiltered(); const rd=l.filter(b=>b.read).length;
+  $('libCount').textContent=l.length+' / '+DB.books.length+' · '+rd+' lu'+(rd>1?'s':'');
+  $('libList').innerHTML=l.length? l.slice(0,libLimit).map(b=>bookRow(b,{isbn:true})).join('')+(l.length>libLimit?`<div style="text-align:center;margin-top:10px"><button class="btn sec sm" id="btnMore">Afficher plus (${l.length-libLimit})</button></div>`:'') : '<p class="mut">Aucun résultat.</p>';
+}
+
+/* ---------- Séries ---------- */
+function compactRange(a){ const out=[]; let s=null,p=null; for(const v of a){ if(s===null){s=p=v;continue;} if(v===p+1){p=v;continue;} out.push(s===p?s:s+'-'+p); s=p=v; } if(s!==null) out.push(s===p?s:s+'-'+p); return out.join(', '); }
+function renderSeries(){
+  const q=norm($('qs').value), t=$('fsType').value, st=$('fsState').value;
+  let gs=seriesGroups().filter(g=>(!q||norm(g.name+' '+g.author).includes(q))&&(!t||g.type===t));
+  if(st==='cours') gs=gs.filter(g=>g.read<g.den); if(st==='fini') gs=gs.filter(g=>g.read>=g.den); if(st==='miss') gs=gs.filter(g=>g.missing.length);
+  $('serList').innerHTML=gs.length? gs.map(g=>{ const p=g.den?g.read/g.den:0;
+    const items=[...g.books.map(b=>[b.volume??1e9,`<button class="vol${b.read?' read':''}${b.status==='envie'?' envie':''}" data-vol="${esc(b.id)}" title="${esc(bookLabel(b))}${b.read?' – lu':''}">${b.volume!=null?f(b.volume,1):'•'}</button>`]),
+      ...g.missing.slice(0,300).map(v=>[v,`<span class="vol miss" title="Tome ${v} manquant">${v}</span>`])].sort((a,b)=>a[0]-b[0]).map(x=>x[1]).join('');
+    return `<div class="ser" data-ser="${esc(g.key)}"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div style="min-width:0"><b>${esc(g.name)}</b> <span class="tag ${g.type}">${g.type}</span><div class="small mut">${esc(g.author)}</div></div>
+      <div style="text-align:right;white-space:nowrap"><b class="${p>=1?'green':''}">${g.read}/${g.den} lus</b><div class="small mut">${g.owned} possédé${g.owned>1?'s':''}${g.wish?' · '+g.wish+' envie'+(g.wish>1?'s':''):''}</div></div></div>
+      <div class="bar" style="margin:6px 0"><i style="width:${(p*100).toFixed(0)}%"></i></div>
+      <div class="small">${g.missing.length?`<span class="orange">Manquants : ${esc(compactRange(g.missing))}</span>`:'<span class="mut">Aucun tome manquant'+(g.total?'':' (indique le nombre total de tomes pour vérifier)')+'</span>'}${g.total?` · <span class="mut">${g.total} tomes parus</span>`:''}</div>
+      <div class="vols">${items}</div>
+      <div class="row" style="margin-top:8px"><button class="btn sec sm" data-sact="addvol">➕ Tomes</button><button class="btn sec sm" data-sact="total">🔢 Nb total</button><button class="btn sec sm" data-sact="list">📚 Voir</button>${g.books.some(b=>!b.read)?'<button class="btn sec sm" data-sact="next">✓ Tome suivant lu</button>':''}</div></div>`; }).join('')
+    : '<p class="mut">Aucune série. Renseigne le champ « Série » en ajoutant un livre ou un manga.</p>';
+}
+function seriesClick(e){
+  const box=e.target.closest('[data-ser]'); if(!box) return; const g=seriesGroups().find(x=>x.key===box.dataset.ser); if(!g) return;
+  const v=e.target.closest('[data-vol]');
+  if(v){ const b=getBook(v.dataset.vol); if(!b) return; setRead(b,!b.read); commit(); toast(bookLabel(b)+(b.read?' : lu le '+dFR(b.dateRead):' : non lu')); renderAll(); return; }
+  const a=e.target.closest('[data-sact]'); if(!a) return; const act=a.dataset.sact;
+  if(act==='total'){ const r=prompt('Nombre total de tomes parus pour « '+g.name+' » (vide = inconnu)',g.total||''); if(r===null) return; const n=num(r);
+    if(n!=null&&(isNaN(n)||n<1||n>2000||!Number.isInteger(n))){ alert('Nombre invalide'); return; }
+    DB.series[g.key]={total:n,updatedAt:Date.now()}; commit(); renderAll(); }
+  else if(act==='addvol'){ const from=(Math.max(0,...g.books.map(b=>Number.isInteger(b.volume)?b.volume:0)))+1;
+    fillForm(null,{type:g.type,series:g.name,author:g.author,genre:(g.books.find(b=>b.genre)||{}).genre||''}); $('f_multi').checked=true; $('f_from').value=from; $('f_to').value=g.total&&g.total>=from?g.total:''; updForm(); show('add'); }
+  else if(act==='list'){ ['q','fType','fRead','fStatus'].forEach(id=>$(id).value=''); show('lib'); $('fSeries').value=g.key; $('fSort').value='series'; renderLib(); }
+  else if(act==='next'){ const b=g.books.find(x=>!x.read); setRead(b,true); commit(); toast(bookLabel(b)+' : lu le '+dFR(b.dateRead)); renderAll(); }
+}
+
+/* ---------- Stats ---------- */
+function periodMonths(p){ const cur=todayISO().slice(0,7); if(p==='last12'){ const o=[]; for(let i=11;i>=0;i--) o.push(ymAdd(cur,-i)); return o; }
+  return Array.from({length:12},(_,i)=>p+'-'+String(i+1).padStart(2,'0')); }
+function renderStats(){
+  const cur=todayISO().slice(0,7), cy=+cur.slice(0,4);
+  const years=new Set([cy]); DB.books.forEach(b=>{ if(b.read&&b.dateRead) years.add(+b.dateRead.slice(0,4)); });
+  const ys=[...years].sort((a,b)=>b-a); const sel=$('stPeriod').value||String(cy);
+  $('stPeriod').innerHTML=ys.map(y=>`<option value="${y}">${y}</option>`).join('')+'<option value="last12">12 derniers mois</option>';
+  $('stPeriod').value=[...ys.map(String),'last12'].includes(sel)?sel:String(cy);
+  const per=$('stPeriod').value; const ms=periodMonths(per); const data=ms.map(m=>countCat(readsIn(m))); const hi=ms.indexOf(cur);
+  const sum=data.reduce((t,d)=>({livres:t.livres+d.livres,mangas:t.mangas+d.mangas,autres:t.autres+d.autres,total:t.total+d.total}),{livres:0,mangas:0,autres:0,total:0});
+  const elapsed=ms.filter(m=>m<=cur).length||12; const best=Math.max(...data.map(d=>d.total));
+  $('stKpi').innerHTML=[['lus '+(per==='last12'?'sur 12 mois':'en '+per),sum.total],['livres',sum.livres],['mangas',sum.mangas],['BD / autre',sum.autres],['moyenne / mois',f(sum.total/elapsed,1)],['meilleur mois',best?best+' ('+ymLabel(ms[data.findIndex(d=>d.total===best)]).split(' ')[0]+')':'–']]
+    .map(([k,v])=>`<div class="kpi"><b>${v}</b><small>${k}</small></div>`).join('');
+  stackChart($('chMonth'),ms.map(ymLabel),['livres','mangas','autres'].map(k=>({name:CAT_LBL[k],color:CAT_COL[k],values:data.map(d=>d[k])})),hi);
+  $('tblMonth').innerHTML='<table class="tbl" id="tMonth"><tr><th>Mois</th><th>Livres</th><th>Mangas</th><th>BD/Autre</th><th>Total</th></tr>'+ms.map((m,i)=>{const d=data[i];return `<tr class="${i===hi?'cur':''}" data-ym="${m}"><td>${ymLabel(m)}${i===hi?' ◀':''}</td><td>${d.livres}</td><td>${d.mangas}</td><td>${d.autres}</td><td><b>${d.total}</b></td></tr>`}).join('')+
+    `<tr class="tot"><td>Total ${per==='last12'?'12 mois':per}</td><td>${sum.livres}</td><td>${sum.mangas}</td><td>${sum.autres}</td><td>${sum.total}</td></tr></table>`;
+  $('tblYear').innerHTML='<table class="tbl"><tr><th>Année</th><th>Livres</th><th>Mangas</th><th>BD/Autre</th><th>Total</th></tr>'+ys.map(y=>{ const d=countCat(DB.books.filter(b=>b.read&&b.dateRead.startsWith(y+'-')));
+    return `<tr class="${y===cy?'cur':''}"><td>${y}</td><td>${d.livres}</td><td>${d.mangas}</td><td>${d.autres}</td><td><b>${d.total}</b></td></tr>`; }).join('')+
+    `<tr><td class="mut">Lus sans date</td><td></td><td></td><td></td><td>${DB.books.filter(b=>b.read&&!b.dateRead).length}</td></tr></table>`;
+  const own=DB.books.filter(b=>b.status==='possede'); const rd=DB.books.filter(b=>b.read); const rated=DB.books.filter(b=>b.rating);
+  $('stTot').innerHTML=[['titres',DB.books.length],['possédés',own.length],['liste d’envies',DB.books.length-own.length],['lus',rd.length],['% lus',DB.books.length?f(rd.length/DB.books.length*100,0)+' %':'–'],['note moyenne',rated.length?f(rated.reduce((t,b)=>t+b.rating,0)/rated.length,1)+' ★':'–']]
+    .map(([k,v])=>`<div class="kpi"><b>${v}</b><small>${k}</small></div>`).join('');
+  $('tblType').innerHTML='<table class="tbl"><tr><th>Type</th><th>Titres</th><th>Possédés</th><th>Envies</th><th>Lus</th><th>% lus</th></tr>'+[...TYPES,null].map(t=>{ const l=t?DB.books.filter(b=>b.type===t):DB.books; const r=l.filter(b=>b.read).length;
+    return `<tr class="${t?'':'tot'}"><td>${t||'Total'}</td><td>${l.length}</td><td>${l.filter(b=>b.status==='possede').length}</td><td>${l.filter(b=>b.status==='envie').length}</td><td>${r}</td><td>${l.length?f(r/l.length*100,0)+' %':'–'}</td></tr>`; }).join('')+'</table>';
+}
+
+/* ---------- Formulaire ---------- */
+let fRating=null;
+function setRating(r){ fRating=r; $('f_rate').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',r!=null&&i<r)); }
+function fillForm(b,preset={}){
+  const x=b||Object.assign({type:'Livre',status:'possede'},preset);
+  $('f_id').value=b?b.id:''; $('formTitle').textContent=b?'Modifier':'Ajouter';
+  $('f_type').value=x.type||'Livre'; $('f_status').value=x.status||'possede';
+  for(const k of ['title','author','series','isbn','cover','genre','notes']) $('f_'+k).value=x[k]||'';
+  $('f_volume').value=x.volume!=null?String(x.volume).replace('.',','):'';
+  $('f_read').checked=!!x.read; $('f_dateRead').value=x.dateRead||'';
+  $('f_multi').checked=false; $('f_from').value=''; $('f_to').value=''; $('lookupMsg').textContent='';
+  setRating(x.rating||null); $('btnDel').classList.toggle('hidden',!b); $('w_range').classList.toggle('hidden',!!b); updForm();
+}
+function updForm(){
+  const multi=$('f_multi').checked&&!$('f_id').value; $('w_range2').classList.toggle('hidden',!multi); $('w_vol').classList.toggle('hidden',multi);
+  $('w_date').classList.toggle('hidden',!$('f_read').checked);
+  $('dateHint').textContent=$('f_read').checked?($('f_dateRead').value?'Compté dans les lectures de '+ymLabel($('f_dateRead').value.slice(0,7))+'.':'Sans date : compté dans les lus, pas dans les stats mensuelles.'):'';
+  if(multi){ const a=num($('f_from').value), z=num($('f_to').value); $('rangeInfo').textContent=(Number.isInteger(a)&&Number.isInteger(z)&&z>=a)?'→ '+(z-a+1)+' tome'+(z>a?'s':''):''; }
+  const u=safeImg($('f_cover').value); const im=$('f_coverImg'); if(u){ if(im.getAttribute('src')!==u) im.src=u; im.classList.remove('hidden'); } else { im.removeAttribute('src'); im.classList.add('hidden'); }
+}
+function readForm(){
+  const errs=[]; const v=num($('f_volume').value); if(v!=null&&(isNaN(v)||v<0)) errs.push('Tome n°');
+  const read=$('f_read').checked; const dr=$('f_dateRead').value; if(read&&dr&&!/^\d{4}-\d{2}-\d{2}$/.test(dr)) errs.push('Date de lecture');
+  const cover=$('f_cover').value.trim(); if(cover&&!safeImg(cover)) errs.push('Couverture (URL https:// attendue)');
+  const b={type:$('f_type').value,status:$('f_status').value,title:$('f_title').value.trim(),author:$('f_author').value.trim(),series:$('f_series').value.trim(),
+    volume:(v==null||isNaN(v))?null:v,isbn:cleanIsbn($('f_isbn').value),cover,genre:$('f_genre').value.trim(),read,dateRead:read?dr:'',rating:fRating,notes:$('f_notes').value.trim()};
+  return {b,errs};
+}
+function submitForm(e){
+  e.preventDefault(); const {b,errs}=readForm(); const id=$('f_id').value; const now=Date.now();
+  if(errs.length){ alert('Valeurs invalides : '+errs.join(', ')); return; }
+  if(!id&&$('f_multi').checked){
+    const a=num($('f_from').value), z=num($('f_to').value);
+    if(!b.series){ alert('Indique le nom de la série.'); $('f_series').focus(); return; }
+    if(!Number.isInteger(a)||!Number.isInteger(z)||a<0||z<a){ alert('Plage de tomes invalide (ex. 1 à 20).'); return; }
+    if(z-a+1>500){ alert('500 tomes maximum à la fois.'); return; }
+    const k=serKey(b.series); const have=new Set(DB.books.filter(x=>serKey(x.series)===k&&x.volume!=null).map(x=>x.volume)); let n=0,skip=0;
+    for(let i=a;i<=z;i++){ if(have.has(i)){ skip++; continue; }
+      DB.books.push(normBook(Object.assign({},b,{id:uid(),title:'',volume:i,isbn:'',cover:'',addedAt:now+n,updatedAt:now}))); n++; }
+    commit(); toast(n+' tome'+(n>1?'s':'')+' ajouté'+(n>1?'s':'')+(skip?' · '+skip+' déjà présent'+(skip>1?'s':'')+' ignoré'+(skip>1?'s':''):''));
+    fillForm(null); show('series'); return;
+  }
+  if(!b.title&&!b.series){ alert('Indique au moins un titre ou une série.'); $('f_title').focus(); return; }
+  if(!id&&b.isbn){ const dup=DB.books.find(x=>x.isbn&&x.isbn===b.isbn); if(dup&&!confirm('« '+bookLabel(dup)+' » a déjà cet ISBN. L’ajouter quand même ?')) return; }
+  if(id){ const i=DB.books.findIndex(x=>x.id===id); if(i>=0) DB.books[i]=normBook(Object.assign({},DB.books[i],b,{updatedAt:now})); }
+  else DB.books.push(normBook(Object.assign({id:uid(),addedAt:now,updatedAt:now},b)));
+  commit(); toast(id?'Modifié':'Ajouté : '+bookLabel(b)); fillForm(null); show(id?(prevPage||'lib'):'lib');
+}
+function fillDatalists(){
+  const uniq=a=>[...new Set(a.filter(Boolean))].sort(coll.compare);
+  $('dlSeries').innerHTML=uniq(DB.books.map(b=>b.series)).map(s=>`<option value="${esc(s)}">`).join('');
+  $('dlAuthors').innerHTML=uniq(DB.books.map(b=>b.author)).map(s=>`<option value="${esc(s)}">`).join('');
+  $('dlGenres').innerHTML=uniq([...GENRES,...DB.books.map(b=>b.genre)]).map(s=>`<option value="${esc(s)}">`).join('');
+}
+function seriesChanged(){ // série connue : propose l'auteur, le type et le tome suivant
+  const s=$('f_series').value.trim(); if(!s||$('f_id').value) return; const k=serKey(s); const l=DB.books.filter(b=>serKey(b.series)===k); if(!l.length) return;
+  if(!$('f_author').value) $('f_author').value=(l.find(b=>b.author)||{}).author||'';
+  if(!$('f_volume').value){ const m=Math.max(0,...l.map(b=>Number.isInteger(b.volume)?b.volume:0)); if(m) $('f_volume').value=m+1; }
+  if($('f_type').value==='Livre') $('f_type').value=l[0].type;
+}
+function coverFromFile(file){ if(!file) return; const rd=new FileReader(); rd.onload=()=>{ const img=new Image(); img.onload=()=>{ const w=240, h=Math.round(img.height*w/img.width); const c=document.createElement('canvas'); c.width=w; c.height=Math.min(h,400);
+  c.getContext('2d').drawImage(img,0,0,w,h); $('f_cover').value=c.toDataURL('image/jpeg',0.72); updForm(); toast('Photo de couverture ajoutée'); }; img.onerror=()=>alert('Image illisible'); img.src=rd.result; }; rd.readAsDataURL(file); }
+
+/* ---------- ISBN : Open Library puis Google Books (sans jeton) ---------- */
+function cleanIsbn(s){ return String(s||'').replace(/[^0-9Xx]/g,'').toUpperCase(); }
+function isbnValid(s){ if(/^\d{13}$/.test(s)){ let t=0; for(let i=0;i<13;i++) t+=(+s[i])*(i%2?3:1); return t%10===0; }
+  if(/^\d{9}[\dX]$/.test(s)){ let t=0; for(let i=0;i<10;i++) t+=(s[i]==='X'?10:+s[i])*(10-i); return t%11===0; } return false; }
+function splitSeries(title){ const m=String(title||'').match(/^(.*?)[\s,.:\-–—(]*(?:tome|t\.|vol\.?|volume|n°)\s*0*(\d{1,4})\b\)?/i); return m&&m[1].trim()?{series:m[1].trim(),volume:+m[2]}:null; }
+const MANGA_PUB=/gl[ée]nat manga|kana|ki-?oon|pika|kurokawa|tonkam|kaz[ée]|akata|ototo|mangetsu|meian|doki-?doki|crunchyroll|vega|nobi nobi|black box|soleil manga|panini manga|viz media|shueisha|kodansha|shogakukan/i;
+async function fetchJSON(u){ const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),9000); try{ const r=await fetch(u,{signal:ctl.signal}); if(!r.ok) return null; return await r.json(); }catch(e){ return null; } finally{ clearTimeout(t); } }
+async function lookupISBN(isbn){
+  let res=null;
+  const ol=await fetchJSON('https://openlibrary.org/api/books?bibkeys=ISBN:'+isbn+'&format=json&jscmd=data');
+  const d=ol&&ol['ISBN:'+isbn];
+  if(d&&d.title){ res={title:d.title+(d.subtitle&&!/^\d+$/.test(d.subtitle)?' : '+d.subtitle:''),author:(d.authors||[]).map(a=>a.name).join(', '),cover:(d.cover&&(d.cover.large||d.cover.medium))||'',publisher:(d.publishers||[]).map(p=>p.name).join(', '),genre:'',src:'Open Library'}; }
+  if(!res||!res.author||!res.cover){ const g=await fetchJSON('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn);
+    const v=g&&g.items&&g.items[0]&&g.items[0].volumeInfo;
+    if(v&&v.title){ const gr={title:v.title+(v.subtitle&&!/^\d+$/.test(v.subtitle)?' : '+v.subtitle:''),author:(v.authors||[]).join(', '),cover:((v.imageLinks&&(v.imageLinks.thumbnail||v.imageLinks.smallThumbnail))||'').replace('&edge=curl',''),publisher:v.publisher||'',genre:(v.categories||[])[0]||'',src:'Google Books'};
+      res=res?{title:res.title||gr.title,author:res.author||gr.author,cover:res.cover||gr.cover,publisher:res.publisher||gr.publisher,genre:gr.genre,src:res.src+' + Google Books'}:gr; } }
+  if(res&&!res.cover) res.cover='https://covers.openlibrary.org/b/isbn/'+isbn+'-M.jpg?default=false';
+  if(res&&res.cover) res.cover=res.cover.replace(/^http:/,'https:');
+  return res;
+}
+async function doLookup(){
+  const isbn=cleanIsbn($('f_isbn').value); const msg=$('lookupMsg');
+  if(!isbn){ msg.textContent='Tape ou scanne un ISBN (10 ou 13 chiffres).'; msg.className='small red'; $('f_isbn').focus(); return; }
+  $('f_isbn').value=isbn;
+  if(!isbnValid(isbn)){ msg.textContent='ISBN invalide (clé de contrôle incorrecte) : vérifie les chiffres.'; msg.className='small red'; return; }
+  if(navigator.onLine===false){ msg.textContent='Hors ligne : remplis les champs à la main, la recherche ISBN demande internet.'; msg.className='small orange'; return; }
+  msg.textContent='Recherche…'; msg.className='small mut'; $('btnLookup').disabled=true;
+  try{ const r=await lookupISBN(isbn);
+    if(!r){ msg.textContent='Aucun résultat pour cet ISBN : remplis les champs à la main.'; msg.className='small orange'; return; }
+    const sp=splitSeries(r.title);
+    if(sp&&!$('f_series').value){ $('f_series').value=sp.series; if(!$('f_volume').value) $('f_volume').value=sp.volume; }
+    $('f_title').value=r.title; if(r.author) $('f_author').value=r.author; if(r.cover) $('f_cover').value=r.cover; if(r.genre&&!$('f_genre').value) $('f_genre').value=r.genre;
+    if($('f_type').value==='Livre'&&MANGA_PUB.test(r.publisher||'')) $('f_type').value='Manga';
+    msg.textContent='Trouvé via '+r.src+(r.publisher?' · '+r.publisher:'')+'. Vérifie et complète.'; msg.className='small green'; updForm();
+  } finally { $('btnLookup').disabled=false; }
+}
+
+/* ---------- Scan du code-barres (BarcodeDetector, sinon saisie) ---------- */
+let scanStream=null, scanTimer=null;
+async function startScan(){
+  if(!('BarcodeDetector' in window)){ toast('Scan non pris en charge par ce navigateur (ex. Safari) : tape l’ISBN.'); $('f_isbn').focus(); return; }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ toast('Caméra indisponible : tape l’ISBN.'); $('f_isbn').focus(); return; }
+  let det; try{ const sup=await BarcodeDetector.getSupportedFormats(); const fm=['ean_13','ean_8','upc_a','upc_e'].filter(x=>sup.includes(x)); if(!fm.length) throw 0; det=new BarcodeDetector({formats:fm}); }
+  catch(e){ toast('Lecture des codes-barres EAN indisponible : tape l’ISBN.'); $('f_isbn').focus(); return; }
+  try{ scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false}); }
+  catch(e){ toast('Accès à la caméra refusé : autorise-le dans le navigateur ou tape l’ISBN.'); $('f_isbn').focus(); return; }
+  const v=$('scanVideo'); v.srcObject=scanStream; $('scanner').style.display='flex'; $('scanMsg').textContent='Place le code-barres dans le cadre…';
+  try{ await v.play(); }catch(e){}
+  const tick=async()=>{ if(!scanStream) return; try{ const vals=(await det.detect(v)).map(x=>x.rawValue); const c=vals.find(x=>/^97[89]\d{10}$/.test(x))||vals.find(x=>/^\d{10,13}$/.test(x));
+      if(c){ stopScan(); if(navigator.vibrate) navigator.vibrate(60); if(curPage!=='add'){ fillForm(null); show('add'); } $('f_isbn').value=c; doLookup(); return; } }catch(e){}
+    scanTimer=setTimeout(tick,220); };
+  tick();
+}
+function stopScan(){ clearTimeout(scanTimer); if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; } const v=$('scanVideo'); if(v) v.srcObject=null; $('scanner').style.display='none'; }
+
+/* ---------- Synchronisation GitHub Gist ---------- */
+// Le jeton reste dans ce navigateur (localStorage) et n'est envoyé qu'à https://api.github.com.
+const SYNC_KEY = KEY+'.sync'; const GIST_FILE='ma-bibliotheque-data.json'; const GH_API='https://api.github.com';
+const OTHER_SYNC_KEY='suiviMontagne.v1.sync'; // même site (blood63.github.io) : le jeton de Suivi Montagne peut être réutilisé
+function syncCfg(){ const d={token:'',gistId:'',lastSync:0,auto:true}; try{ return Object.assign(d,JSON.parse(localStorage.getItem(SYNC_KEY)||'{}')); }catch(e){ return d; } }
+function saveSyncCfg(c){ localStorage.setItem(SYNC_KEY,JSON.stringify(c)); }
+class SyncError extends Error{ constructor(m,status){ super(m); this.status=status; } }
+async function gh(token,path,opt={}){
+  if(navigator.onLine===false) throw new SyncError('Pas de connexion internet : synchronisation impossible pour le moment.');
+  const headers={'Accept':'application/vnd.github+json','Authorization':'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28'};
+  if(opt.body) headers['Content-Type']='application/json';
+  let r;
+  try{ r=await fetch(GH_API+path,{method:opt.method||'GET',headers,body:opt.body?JSON.stringify(opt.body):undefined,cache:'no-store'}); }
+  catch(e){ throw new SyncError('Impossible de joindre GitHub : vérifie ta connexion internet.'); }
+  if(r.ok) return r.status===204?null:r.json();
+  let msg=''; try{ msg=(await r.json()).message||''; }catch(e){}
+  if(r.status===401) throw new SyncError('Jeton refusé par GitHub (invalide, expiré ou révoqué). Crée un nouveau jeton et colle-le ici.',401);
+  if(r.status===403||r.status===429){
+    if(r.headers.get('x-ratelimit-remaining')==='0'||/rate limit/i.test(msg)) throw new SyncError('Limite de requêtes GitHub atteinte. Réessaie dans quelques minutes.',r.status);
+    throw new SyncError('Ce jeton n’a pas le droit d’utiliser les Gists. Recrée-le avec la case « gist » cochée.',r.status); }
+  if(r.status===404) throw new SyncError('Gist introuvable (supprimé, ou jeton sans accès aux Gists).',404);
+  if(r.status===422) throw new SyncError('GitHub a refusé les données'+(msg?' ('+msg+')':'')+'.',422);
+  throw new SyncError('Erreur GitHub ('+r.status+(msg?' : '+msg:'')+'). Réessaie plus tard.',r.status);
+}
+async function findGist(token){
+  for(let p=1;p<=10;p++){ const list=await gh(token,'/gists?per_page=100&page='+p);
+    const g=(list||[]).find(x=>x.files&&x.files[GIST_FILE]); if(g) return g; if(!list||list.length<100) return null; }
+  return null;
+}
+async function readGistFile(gist){ const f=gist.files&&gist.files[GIST_FILE]; if(!f) return null;
+  if(f.truncated&&f.raw_url){ try{ return await (await fetch(f.raw_url,{cache:'no-store'})).text(); }catch(e){ throw new SyncError('Impossible de télécharger le fichier du gist.'); } } // sans jeton
+  return f.content; }
+let syncing=false, syncAgain=false, syncTimer=null;
+async function syncNow(opts={}){
+  const c=syncCfg(); if(!c.token){ setSyncStatus('Aucun jeton enregistré : colle ton jeton GitHub ci-dessus.','red'); return false; }
+  if(syncing){ syncAgain=true; return false; } syncing=true; clearTimeout(syncTimer); setSyncStatus('Synchronisation en cours…'); setDot('⏳ synchro…');
+  const btn=$('btnSync'); if(btn) btn.disabled=true;
+  try{
+    let gist=null;
+    if(c.gistId){ try{ gist=await gh(c.token,'/gists/'+encodeURIComponent(c.gistId)); }catch(e){ if(e.status!==404) throw e; c.gistId=''; } }
+    if(!gist){ const g=await findGist(c.token); if(g) gist=await gh(c.token,'/gists/'+encodeURIComponent(g.id)); }
+    let remote=null;
+    if(gist){ const txt=await readGistFile(gist);
+      if(txt){ try{ remote=JSON.parse(txt); }catch(e){ throw new SyncError('Le fichier du gist est illisible (JSON invalide).'); }
+        if(!validImport(remote)) throw new SyncError('Le fichier du gist n’a pas le format attendu.'); migrate(remote); } }
+    const snapshot=JSON.parse(JSON.stringify(DB));
+    const merged=remote? mergeDB(snapshot,remote) : snapshot;
+    const body={files:{[GIST_FILE]:{content:JSON.stringify(merged)}}};
+    if(gist){ await gh(c.token,'/gists/'+encodeURIComponent(gist.id),{method:'PATCH',body}); c.gistId=gist.id; }
+    else { const g=await gh(c.token,'/gists',{method:'POST',body:Object.assign({description:'Ma bibliothèque – données (gist secret, ne pas rendre public)',public:false},body)}); c.gistId=g.id; }
+    DB=mergeDB(merged,DB); // conserve une éventuelle saisie faite pendant la synchro
+    save(); const c2=syncCfg(); c2.gistId=c.gistId; c2.lastSync=Date.now(); saveSyncCfg(c2);
+    renderAll(); setSyncStatus('Synchronisé ✔','green'); if(!opts.silent) toast('Synchronisation réussie');
+    return true;
+  }catch(e){
+    const m=e instanceof SyncError? e.message : 'Erreur inattendue pendant la synchronisation : '+e.message;
+    if(c.gistId!==syncCfg().gistId){ const c3=syncCfg(); c3.gistId=c.gistId; saveSyncCfg(c3); }
+    setSyncStatus(m,'red'); if(!opts.silent) toast(m); return false;
+  }finally{ syncing=false; if(btn) btn.disabled=false; renderDot(); if(syncAgain){ syncAgain=false; scheduleSync(1500); } }
+}
+// Après une modification : envoi groupé au bout de 15 s (si synchro auto activée)
+function scheduleSync(ms=15000){ const c=syncCfg(); if(!c.token||!c.auto) return; clearTimeout(syncTimer); setDot('● à synchroniser'); syncTimer=setTimeout(()=>syncNow({silent:true}).then(renderSync),ms); }
+function setDot(t){ $('syncDot').textContent=t; }
+function renderDot(){ const c=syncCfg(); setDot(!c.token?'':(/red/.test($('syncMsg').className)?'⚠️ synchro':(c.lastSync?'☁️ '+fmtTime(c.lastSync):''))); }
+function fmtTime(t){ const d=new Date(t); return (toISO(d)===todayISO()?'':dFR(toISO(d)).slice(0,5)+' ')+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function fmtDT(t){ const d=new Date(t); return dFR(toISO(d))+' à '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function setSyncStatus(msg,cls){ const el=$('syncMsg'); if(el){ el.textContent=msg||''; el.className='small '+(cls||'mut'); } }
+function otherToken(){ try{ const o=JSON.parse(localStorage.getItem(OTHER_SYNC_KEY)||'{}'); return typeof o.token==='string'?o.token:''; }catch(e){ return ''; } }
+function renderSync(){ const c=syncCfg();
+  $('syncLast').textContent=c.lastSync?('Dernière synchronisation : '+fmtDT(c.lastSync)):'Jamais synchronisé sur cet appareil.';
+  $('syncTokenState').textContent=c.token?('Jeton enregistré ('+c.token.slice(0,7)+'…'+c.token.slice(-4)+')'):'Aucun jeton enregistré.';
+  $('syncAuto').checked=!!c.auto;
+  $('syncGist').innerHTML=c.gistId?('Gist : <a href="https://gist.github.com/'+encodeURIComponent(c.gistId)+'" target="_blank" rel="noopener">'+esc(c.gistId.slice(0,10))+'…</a>'):'';
+  const ot=otherToken(); $('btnTokReuse').classList.toggle('hidden',!ot||ot===c.token);
+  renderDot();
+}
+function initSync(){
+  const useToken=async t=>{ const c=syncCfg(); c.token=t; saveSyncCfg(c); $('syncToken').value=''; renderSync(); await syncNow(); renderSync(); };
+  $('btnTokSave').addEventListener('click',async()=>{ const t=$('syncToken').value.trim(); if(!t){ setSyncStatus('Colle d’abord ton jeton.','red'); return; }
+    if(!/^(ghp_|github_pat_)[A-Za-z0-9_]+$/.test(t) && !confirm('Ce texte ne ressemble pas à un jeton GitHub (ghp_… ou github_pat_…). L’enregistrer quand même ?')) return;
+    await useToken(t); });
+  $('btnTokReuse').addEventListener('click',async()=>{ const t=otherToken(); if(t) await useToken(t); });
+  $('btnSync').addEventListener('click',async()=>{ await syncNow(); renderSync(); });
+  $('btnTokForget').addEventListener('click',()=>{ if(!confirm('Oublier le jeton sur cet appareil ? (les données restent sur l’appareil et dans le gist)')) return; const c=syncCfg(); c.token=''; saveSyncCfg(c); clearTimeout(syncTimer); renderSync(); setSyncStatus('Jeton supprimé de cet appareil.'); renderDot(); });
+  $('syncAuto').addEventListener('change',e=>{ const c=syncCfg(); c.auto=e.target.checked; saveSyncCfg(c); });
+  $('btnTokShow').addEventListener('click',()=>{ const i=$('syncToken'); i.type=i.type==='password'?'text':'password'; });
+  document.addEventListener('visibilitychange',()=>{ const c=syncCfg(); if(document.visibilityState==='visible'&&c.token&&c.auto&&Date.now()-c.lastSync>60000) syncNow({silent:true}).then(renderSync); });
+  window.addEventListener('online',()=>scheduleSync(2000));
+  renderSync();
+  const c=syncCfg(); if(c.token&&c.auto) syncNow({silent:true}).then(renderSync);
+}
+
+/* ---------- Export / import ---------- */
+function download(name,text,mime){ const blob=new Blob([text],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500); }
+const csvS=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+const CSV_COLS=[['ID','id'],['Type','type'],['Titre','title'],['Auteur','author'],['Série','series'],['Tome','volume'],['ISBN','isbn'],['Genre','genre'],['Statut','status'],['Lu','read'],['Date lu','dateRead'],['Note','rating'],['Notes','notes'],['Couverture','cover'],['Ajouté le','addedAt']];
+function booksCSV(){ const rows=DB.books.slice().sort((a,b)=>coll.compare(a.series||bookLabel(a),b.series||bookLabel(b))||(a.volume??0)-(b.volume??0)).map(b=>CSV_COLS.map(([,k])=>{ const v=b[k];
+    if(k==='status') return csvS(STATUS_LBL[v]); if(k==='read') return v?'oui':'non'; if(k==='dateRead') return v?dFR(v):''; if(k==='volume') return v==null?'':String(v).replace('.',',');
+    if(k==='rating') return v||''; if(k==='addedAt') return dFR(toISO(new Date(v))); if(k==='cover') return csvS(String(v).startsWith('data:')?'':v); return csvS(v); }).join(';'));
+  return '\ufeff'+CSV_COLS.map(c=>c[0]).join(';')+'\n'+rows.join('\n'); }
+function monthsCSV(){ const l=[...new Set(DB.books.filter(b=>b.read&&b.dateRead).map(b=>b.dateRead.slice(0,7)))].sort();
+  return '\ufeff'+['Mois','Livres','Mangas','BD/Autre','Total'].join(';')+'\n'+l.map(m=>{ const c=countCat(readsIn(m)); return [m,c.livres,c.mangas,c.autres,c.total].join(';'); }).join('\n'); }
+function parseCSV(text){ text=text.replace(/^\ufeff/,''); const first=text.split(/\r?\n/)[0]||''; const sep=(first.split(';').length>=first.split(',').length)?';':',';
+  const rows=[]; let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){ const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else if(ch==='"') q=true; else if(ch===sep){ row.push(cur); cur=''; } else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&text[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; } else cur+=ch; }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+function csvToBooks(text){
+  const rows=parseCSV(text); if(rows.length<1) throw new Error('vide');
+  const H={id:'id',type:'type',titre:'title',title:'title',auteur:'author',author:'author',serie:'series',series:'series',tome:'volume',volume:'volume',isbn:'isbn',genre:'genre',statut:'status',status:'status',lu:'read',read:'read','date lu':'dateRead','date de lecture':'dateRead',note:'rating',rating:'rating',notes:'notes',commentaire:'notes',couverture:'cover',cover:'cover'};
+  const idx=rows[0].map(h=>H[norm(h)]||null); if(!idx.includes('title')&&!idx.includes('series')) throw new Error('entete');
+  const now=Date.now();
+  return rows.slice(1).map((r,i)=>{ const o={}; idx.forEach((k,j)=>{ if(k) o[k]=(r[j]||'').trim(); });
+    const nt=norm(o.type); const ty=TYPES.find(t=>norm(t)===nt)||(/^mangas?$/.test(nt)?'Manga':/^(livres?|roman)$/.test(nt)?'Livre':/^(bd|bande dessinee|comics?)$/.test(nt)?'BD':nt?'Autre':'Livre');
+    const read=/^(oui|o|yes|y|1|x|vrai|true|lu)$/i.test(o.read||'')||(!o.read&&!!isoDate(o.dateRead));
+    return {id:o.id||'', type:ty, title:o.title||'', author:o.author||'', series:o.series||'', volume:o.volume, isbn:cleanIsbn(o.isbn), genre:o.genre||'', status:/envie|wish/i.test(o.status||'')?'envie':'possede',
+      read, dateRead:read?isoDate(o.dateRead):'', rating:o.rating, notes:o.notes||'', cover:safeImg(o.cover)||'', updatedAt:now, addedAt:now+i}; }).filter(b=>b.title||b.series);
+}
+function validImport(o){ return o&&typeof o==='object'&&Array.isArray(o.books)&&o.books.every(b=>b&&typeof b==='object'&&typeof b.id==='string'&&typeof b.title==='string'); }
+function importText(txt,name,replace){
+  let inc;
+  if(/\.json$/i.test(name)||/^\s*\{/.test(txt)){ const o=JSON.parse(txt); if(!validImport(o)) throw new Error('format'); inc=Object.assign({version:1,series:{}},o); migrate(inc); }
+  else { const now=Date.now(); inc={version:DATA_VERSION,series:{},tomb:{b:{}},books:csvToBooks(txt).map(b=>{ const ex=b.id&&getBook(b.id);
+      return normBook(ex?Object.assign({},b,{addedAt:ex.addedAt,cover:b.cover||ex.cover,updatedAt:now}):Object.assign({},b,{id:b.id||uid()})); })}; }
+  if(replace){ if(!confirm('Remplacer les '+DB.books.length+' livres de cet appareil par les '+inc.books.length+' du fichier ?')) return 0; DB=inc; }
+  else { if(!confirm('Fusionner '+inc.books.length+' livre(s) du fichier avec ta bibliothèque ?')) return 0; DB=mergeDB(DB,inc); }
+  commit(); renderAll(); toast('Import réussi : '+inc.books.length+' livre(s)'); return inc.books.length;
+}
+function importFile(file){ const rd=new FileReader(); const replace=$('impReplace').checked;
+  rd.onload=()=>{ try{ importText(String(rd.result),file.name,replace); }
+    catch(err){ alert('Fichier invalide : sauvegarde JSON de l’app ou CSV avec une ligne d’en-tête (Titre, Auteur…) attendu.'); } finally{ $('impFile').value=''; } };
+  rd.readAsText(file); }
+
+/* ---------- Navigation ---------- */
+let curPage='home', prevPage='lib';
+function show(p){ if(p!==curPage&&curPage!=='add') prevPage=curPage; curPage=p; if(p!=='add') stopScan();
+  document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p-'+p)); document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  renderPage(p); window.scrollTo(0,0); }
+function renderPage(p){ if(p==='home') renderHome(); if(p==='lib') renderLib(); if(p==='series') renderSeries(); if(p==='stats') renderStats(); if(p==='data') renderSync(); }
+function renderAll(){ renderPage(curPage); if(curPage!=='home') renderHome(); fillDatalists(); }
+
+/* ---------- Init ---------- */
+function init(){
+  load();
+  $('f_type').innerHTML=TYPES.map(t=>`<option>${t}</option>`).join('');
+  $('fType').innerHTML='<option value="">Tous types</option>'+TYPES.map(t=>`<option>${t}</option>`).join('');
+  $('fsType').innerHTML='<option value="">Tous types</option>'+TYPES.map(t=>`<option>${t}</option>`).join('');
+  $('f_rate').innerHTML=[1,2,3,4,5].map(i=>`<button type="button" data-r="${i}" aria-label="${i} étoile${i>1?'s':''}">★</button>`).join('');
+  $('f_rate').addEventListener('click',e=>{ const b=e.target.closest('[data-r]'); if(!b) return; const r=+b.dataset.r; setRating(fRating===r?null:r); });
+  document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.p==='add'&&curPage!=='add') fillForm(null); show(b.dataset.p); }));
+  ['homeRead','homeAdded','libList'].forEach(id=>{ $(id).addEventListener('click',e=>{ if(e.target.id==='btnMore'){ libLimit+=LIB_PAGE; renderLib(); return; } if(e.target.matches('input[type=checkbox]')||e.target.closest('label.lu')) return; listClick(e); });
+    $(id).addEventListener('change',e=>{ if(e.target.matches('input[type=checkbox]')) listClick(e); }); });
+  document.addEventListener('error',e=>{ const t=e.target; if(t&&t.matches&&t.matches('img.cov')){ const d=document.createElement('div'); d.className='cov'; d.textContent=t.dataset.ic||'📄'; t.replaceWith(d); } },true);
+  $('serList').addEventListener('click',seriesClick);
+  $('q').addEventListener('input',()=>{ libLimit=LIB_PAGE; renderLib(); }); $('qs').addEventListener('input',renderSeries);
+  ['fType','fRead','fStatus','fSeries','fSort'].forEach(id=>$(id).addEventListener('change',()=>{ libLimit=LIB_PAGE; renderLib(); }));
+  ['fsType','fsState'].forEach(id=>$(id).addEventListener('change',renderSeries));
+  $('btnClearF').addEventListener('click',()=>{ ['q','fType','fRead','fStatus','fSeries'].forEach(id=>$(id).value=''); $('fSort').value='added'; renderLib(); });
+  $('stPeriod').addEventListener('change',renderStats);
+  $('fBook').addEventListener('submit',submitForm);
+  $('btnCancel').addEventListener('click',()=>{ const wasEdit=!!$('f_id').value; fillForm(null); show(wasEdit?prevPage:'home'); });
+  $('btnDel').addEventListener('click',()=>{ const b=getBook($('f_id').value); if(b&&delBook(b)){ fillForm(null); show(prevPage||'lib'); } });
+  $('f_read').addEventListener('change',()=>{ if($('f_read').checked&&!$('f_dateRead').value) $('f_dateRead').value=todayISO(); updForm(); });
+  ['f_dateRead','f_from','f_to','f_cover'].forEach(id=>$(id).addEventListener('input',updForm)); $('f_multi').addEventListener('change',updForm);
+  $('f_series').addEventListener('change',seriesChanged);
+  $('f_coverImg').addEventListener('error',()=>$('f_coverImg').classList.add('hidden'));
+  $('f_coverFile').addEventListener('change',e=>{ coverFromFile(e.target.files[0]); e.target.value=''; });
+  $('btnCoverClear').addEventListener('click',()=>{ $('f_cover').value=''; updForm(); });
+  $('btnLookup').addEventListener('click',doLookup);
+  $('f_isbn').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doLookup(); } });
+  $('btnScan').addEventListener('click',startScan); $('btnScanClose').addEventListener('click',stopScan);
+  $('btnHomeAdd').addEventListener('click',()=>{ fillForm(null); show('add'); });
+  $('btnHomeScan').addEventListener('click',()=>{ fillForm(null); show('add'); startScan(); });
+  const stamp=()=>todayISO();
+  $('btnExpJson').addEventListener('click',()=>download('ma-bibliotheque-'+stamp()+'.json',JSON.stringify(DB,null,2),'application/json'));
+  $('btnExpCsv').addEventListener('click',()=>download('ma-bibliotheque-livres-'+stamp()+'.csv',booksCSV(),'text/csv;charset=utf-8'));
+  $('btnExpCsvM').addEventListener('click',()=>download('ma-bibliotheque-lectures-mois-'+stamp()+'.csv',monthsCSV(),'text/csv;charset=utf-8'));
+  $('impFile').addEventListener('change',e=>{ const file=e.target.files[0]; if(file) importFile(file); });
+  $('btnReset').addEventListener('click',()=>{ if(confirm('Effacer toute la bibliothèque de cet appareil ?')){ DB=emptyDB(); save(); renderAll(); toast('Données locales effacées'); } });
+  $('verInfo').textContent='Ma bibliothèque v'+APP_VERSION+' · données v'+DATA_VERSION;
+  fillForm(null); renderAll(); show('home');
+  initSync();
+  if('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
