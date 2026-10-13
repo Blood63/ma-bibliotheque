@@ -858,7 +858,7 @@ function caseFrom(s,refs){ s=String(s||'').trim(); if(!s) return s; const n=norm
 /* Open Library */
 async function lookupOL(isbn){ const ol=await fetchJSON('https://openlibrary.org/api/books?bibkeys=ISBN:'+isbn+'&format=json&jscmd=data'); const d=ol&&ol['ISBN:'+isbn]; if(!d||!d.title) return null;
   const pubs=(d.publishers||[]).map(p=>p.name);
-  return {title:d.title+(d.subtitle&&!/^\d+$/.test(d.subtitle)?' : '+d.subtitle:''),rawTitle:d.title,author:(d.authors||[]).map(a=>a.name).join(', '),cover:(d.cover&&(d.cover.large||d.cover.medium))||'',publisher:pubs.join(', '),genre:'',src:'Open Library'}; }
+  return {title:d.title+(d.subtitle&&!/^\d+$/.test(d.subtitle)?' : '+d.subtitle:''),rawTitle:d.title,author:(d.authors||[]).map(a=>a.name).join(', '),cover:(d.cover&&(d.cover.medium||d.cover.large))||'',publisher:pubs.join(', '),genre:'',src:'Open Library'}; }
 /* Google Books (sans clé : souvent bloqué par le quota, erreur 429 ignorée) */
 async function lookupGB(isbn){ const g=await fetchJSON('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn,7000); const v=g&&g.items&&g.items[0]&&g.items[0].volumeInfo; if(!v||!v.title) return null;
   return {title:v.title+(v.subtitle&&!/^\d+$/.test(v.subtitle)?' : '+v.subtitle:''),rawTitle:v.title,author:(v.authors||[]).join(', '),cover:((v.imageLinks&&(v.imageLinks.thumbnail||v.imageLinks.smallThumbnail))||'').replace('&edge=curl',''),publisher:v.publisher||'',genre:(v.categories||[])[0]||'',src:'Google Books'}; }
@@ -1135,7 +1135,10 @@ function coverHTML(b,o={}){ const u=safeImg(b.cover);
     (o.badges===false?'':`${b.volume!=null?`<span class="vb">T${f(b.volume,1)}</span>`:''}${b.status==='envie'?'<span class="wish">Envie</span>':''}${o.qlu===false?'':qluHTML(b)}<span class="selmark">${ico('check')}</span>`)+`</div>`; }
 function readLabel(b){ return b.read?(b.dateRead?'lu en '+ymLabel(b.dateRead.slice(0,7)):'Lu (avant)'):''; }
 document.addEventListener('load',e=>{ const t=e.target; if(t.classList&&t.classList.contains('cvimg')){ t.classList.add('ok'); t.parentNode&&t.parentNode.classList.remove('loading'); } },true);
-document.addEventListener('error',e=>{ const t=e.target; if(t.classList&&t.classList.contains('cvimg')){ const p=t.parentNode; t.remove(); p&&p.classList.remove('loading'); } },true);
+document.addEventListener('error',e=>{ const t=e.target; if(t.classList&&t.classList.contains('cvimg')){ if(t.dataset.fb){ const u=t.dataset.fb; delete t.dataset.fb; t.src=u; return; } const p=t.parentNode; t.remove(); p&&p.classList.remove('loading'); } },true);
+// Grilles : couverture Open Library « M » (légère) ; fiche plein écran : version « L » (nette), repli sur « M »
+const OL_M=/^(https:\/\/covers\.openlibrary\.org\/b\/(?:id|isbn)\/[\w-]+)-M\.jpg(\?default=false)?$/;
+function hiRes(img){ if(!img) return; const m=img.getAttribute('src').match(OL_M); if(m){ img.dataset.fb=img.getAttribute('src'); img.src=m[1]+'-L.jpg'+(m[2]||''); img.removeAttribute('loading'); } }
 
 /* ---------- Animation « Lu » ---------- */
 function celebrate(btn){ if(!btn||RM()) return; btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
@@ -1353,7 +1356,7 @@ function renderDetail(){
   const b=getBook(detailId); if(!b){ closeDetail(true); return; }
   const s=readState(b);
   $('dCover').innerHTML=coverHTML(b,{noact:1,badges:false}).replace(/^<div class="cv[^"]*">/,'').replace(/<\/div>$/,'');
-  $('dCover').className='dcov cv'+(safeImg(b.cover)?' loading':'')+($('dCover').classList.contains('hide')?' hide':'');
+  $('dCover').className='dcov cv'+(safeImg(b.cover)?' loading':'')+($('dCover').classList.contains('hide')?' hide':''); hiRes($('dCover').querySelector('img'));
   $('dBg').innerHTML=safeImg(b.cover)?`<img src="${esc(safeImg(b.cover))}" alt="" referrerpolicy="no-referrer">`:phHTML(b);
   $('dTitle').textContent=bookLabel(b); $('dAuthor').textContent=b.author||'';
   $('dChips').innerHTML=`<span class="tag ${b.type}">${b.type}</span> ${b.status==='envie'?'<span class="tag envie">Liste d’envies</span>':''}<div>${[b.series?esc(b.series)+(b.volume!=null?' · Tome '+f(b.volume,1):''):null,b.genre?esc(b.genre):null].filter(Boolean).map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
