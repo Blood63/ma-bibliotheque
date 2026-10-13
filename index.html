@@ -346,6 +346,7 @@ body.detail-open #detail.zoom{opacity:1;transition:opacity .25s,visibility 0s}
 #selBar{position:fixed;left:12px;right:12px;bottom:calc(var(--tabH) + 12px + env(safe-area-inset-bottom));z-index:13;max-width:640px;margin:0 auto;padding:12px;border-radius:20px;background:rgba(15,24,54,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(217,180,90,.4);box-shadow:0 16px 40px rgba(0,0,0,.55);transform:translate3d(0,140%,0);transition:transform .4s var(--ease),opacity .3s}
 body:not(.selecting) #selBar{pointer-events:none;opacity:0}
 body.selecting #selBar{transform:none;opacity:1}
+body.selecting main{padding-bottom:calc(var(--tabH) + 200px + env(safe-area-inset-bottom))}
 #selBar .t{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13.5px}
 #selBar .t b{font-family:var(--serif);font-size:17px;color:var(--gold2)}
 #selBar .row .btn{flex:1;padding:9px 6px;font-size:13px}
@@ -365,6 +366,25 @@ body.pg-home #libSw{display:none}
 .libsw-fade{transition:opacity .16s ease,transform .16s ease}
 main.swfade .page.on{transition:opacity .16s ease,transform .16s ease}
 main.switching .page.on{opacity:0;transform:translate3d(0,6px,0)}
+/* ---------- Sélecteur « Lu quand ? » ---------- */
+#readPick{position:fixed;inset:0;z-index:46;display:flex;align-items:flex-end;justify-content:center;background:rgba(3,6,18,.55);opacity:0;pointer-events:none;transition:opacity .22s ease}
+#readPick.on{opacity:1;pointer-events:auto}
+#readPick .rpbox{width:100%;max-width:520px;padding:10px 18px calc(18px + env(safe-area-inset-bottom));border-radius:26px 26px 0 0;background:linear-gradient(180deg,#18264f,#0d1634);border:1px solid rgba(217,180,90,.35);border-bottom:0;box-shadow:0 -18px 50px rgba(0,0,0,.55);transform:translate3d(0,100%,0);transition:transform .32s var(--spring)}
+#readPick.on .rpbox{transform:none}
+#readPick .grab{width:42px;height:5px;border-radius:9px;background:rgba(255,255,255,.18);margin:0 auto 12px}
+#readPick h3{font-family:var(--serif);font-size:20px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rpSub{margin:2px 0 14px}
+#rpNow{width:100%;justify-content:center;padding:15px 14px;font-size:16px;border-radius:16px}
+#rpNow b{font-weight:800}
+.rpchips{display:flex;gap:7px;overflow-x:auto;margin:12px -18px 0;padding:2px 18px 4px;scrollbar-width:none}
+.rpchips::-webkit-scrollbar{display:none}
+.rpchips button{flex:none;border:1px solid var(--line2);background:rgba(6,11,29,.45);color:var(--txt2);border-radius:99px;padding:8px 13px;font-size:13.5px;transition:background .2s,border-color .2s}
+.rpchips button:active{background:rgba(217,180,90,.18);border-color:var(--gold)}
+.rpother{display:flex;gap:8px;margin-top:12px;align-items:stretch}
+.rpother .btn{flex:none}
+.rpfoot{display:flex;gap:8px;margin-top:12px}
+.rpfoot .btn{flex:1}
+@media(min-width:700px){ #readPick{align-items:center} #readPick .rpbox{border-radius:24px;border-bottom:1px solid rgba(217,180,90,.35);transform:translate3d(0,30px,0) scale(.97);opacity:0;transition:transform .3s var(--spring),opacity .2s} #readPick.on .rpbox{opacity:1} #readPick .grab{display:none} }
 /* ---------- Format Papier / Kindle ---------- */
 .seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .seg2 button{border:1px solid var(--line2);background:rgba(6,11,29,.5);color:var(--txt2);border-radius:12px;padding:10px 8px;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;transition:border-color .2s,background .2s,color .2s}
@@ -671,12 +691,18 @@ body.selecting .fmt{display:none}
 <!-- Barre de sélection multiple -->
 <div id="selBar" aria-hidden="true">
   <div class="t"><span><b id="selN">0</b> sélectionné(s)</span><span class="row" style="gap:6px"><button class="btn ghost sm" id="selAll">Tout</button><button class="btn ghost sm" id="selCancel">Fermer</button></span></div>
-  <div class="row" style="flex-wrap:nowrap"><button class="btn sm" id="selBefore">Lu (avant)</button><button class="btn sec sm" id="selToday">Lu ce mois-ci</button><button class="btn sec sm" id="selUnread">Non lu</button><button class="btn bad sm" id="selDel" aria-label="Supprimer la sélection" style="flex:0 0 auto"><svg class="i"><use href="#i-trash"/></svg></button></div>
+  <div class="row" style="flex-wrap:nowrap"><button class="btn sm" id="selBefore">Lu (avant)</button><button class="btn sec sm" id="selToday">✓ Lu…</button><button class="btn sec sm" id="selUnread">Non lu</button><button class="btn bad sm" id="selDel" aria-label="Supprimer la sélection" style="flex:0 0 auto"><svg class="i"><use href="#i-trash"/></svg></button></div>
   <div class="row" style="flex-wrap:nowrap;margin-top:8px"><button class="btn ghost sm" id="selPapier">Papier</button><button class="btn ghost sm" id="selKindle">Kindle</button><button class="btn ghost sm" id="selCopy" style="flex:1.6;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block"></button></div>
 </div>
 
 <div id="scanner" role="dialog" aria-label="Scanner un code-barres"><div class="frame"><video id="scanVideo" playsinline muted></video></div><div id="scanMsg" class="mut small" role="status" style="text-align:center;max-width:420px">Place le code-barres dans le cadre…</div>
   <div class="row" style="justify-content:center"><label class="btn sec" style="margin:0;color:var(--txt)">📷 Photo du code-barres<input type="file" id="scanFile" accept="image/*" class="hidden"></label><button class="btn ghost" id="btnScanClose">Fermer</button></div></div>
+<div id="readPick" role="dialog" aria-modal="true" aria-labelledby="rpT" aria-hidden="true"><div class="rpbox"><div class="grab"></div>
+  <h3 id="rpT">Lu quand ?</h3><div class="small mut" id="rpSub"></div>
+  <button class="btn" id="rpNow" type="button"></button>
+  <div class="rpchips" id="rpChips" aria-label="Mois précédents"></div>
+  <div class="rpother"><div class="msel"><select id="rpM" aria-label="Mois"></select><select id="rpY" class="yr" aria-label="Année"></select></div><button class="btn sec" id="rpOk" type="button">OK</button></div>
+  <div class="rpfoot"><button class="btn sec" id="rpBefore" type="button">Lu (avant)</button><button class="btn ghost" id="rpCancel" type="button">Annuler</button></div></div></div>
 <div id="nameDlg" role="dialog" aria-modal="true" aria-labelledby="nameDlgT"><form class="box" id="nameForm" autocomplete="off"><h3 id="nameDlgT">Renommer</h3><p class="small mut" style="margin:0 0 12px" id="nameDlgH">Le nom s’affiche dans le sélecteur et se synchronise sur tes appareils.</p>
   <input id="nameIn" maxlength="30" placeholder="ex. un prénom" enterkeyhint="done"><div class="row" style="margin-top:14px"><button type="button" class="btn sec" id="nameCancel" style="flex:1">Annuler</button><button class="btn" type="submit" style="flex:1">Enregistrer</button></div></form></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -1236,11 +1262,35 @@ function celebrate(btn){ if(!btn||RM()) return; btn.classList.remove('pop'); voi
   for(let i=0;i<8;i++){ const s=document.createElement('span'); s.className='spark'; s.style.setProperty('--a',(i*45+Math.random()*16)+'deg'); btn.appendChild(s); }
   setTimeout(()=>btn.querySelectorAll('.burst,.spark').forEach(x=>x.remove()),700); }
 let rerT=null; function renderSoon(ms){ clearTimeout(rerT); rerT=setTimeout(()=>{ renderAll(); },RM()?0:ms); }
-function toggleRead(b,btn){ const was=b.read; setRead(b,!was); commit();
-  if(btn){ const s=readState(b); btn.classList.toggle('on',s!=='no'); btn.classList.toggle('before',s==='before'); btn.setAttribute('aria-pressed',b.read); const tile=btn.closest('.bk'); if(tile) tile.classList.toggle('read',b.read); }
-  if(b.read){ celebrate(btn); haptic([12,40,22]); toast('« '+bookLabel(b)+' » lu en '+moisAn(b.dateRead)+' · mois modifiable dans la fiche'); } else { haptic(8); toast('Marqué non lu'); }
-  renderSoon(650); }
+function paintQlu(b,btn){ if(!btn||!btn.isConnected) return; const s=readState(b); btn.classList.toggle('on',s!=='no'); btn.classList.toggle('before',s==='before'); btn.setAttribute('aria-pressed',b.read); const tile=btn.closest('.bk'); if(tile) tile.classList.toggle('read',b.read); }
+function toggleRead(b,btn){
+  if(b.read){ setRead(b,false); commit(); paintQlu(b,btn); haptic(8); toast('Marqué non lu'); renderSoon(650); return; }
+  openReadPick([b],()=>{ paintQlu(b,btn); celebrate(btn); renderSoon(650); }); }
 function markBefore(b){ b.read=true; b.dateRead=''; b.updatedAt=Date.now(); }
+/* Sélecteur « Lu quand ? » : s'ouvre à chaque fois qu'on coche « Lu » ; un seul geste pour « ce mois-ci » */
+let rp=null; const rpOpen=()=>$('readPick').classList.contains('on');
+function openReadPick(list,done,o={}){ list=list.filter(Boolean); if(!list.length) return; if(rpOpen()) closeReadPick();
+  rp={list,done}; const t=todayISO(), cur=t.slice(0,7), one=list.length===1;
+  $('rpT').textContent=one?'« '+bookLabel(list[0])+' » lu quand ?':(o.title||list.length+' livres lus quand ?');
+  $('rpSub').textContent=o.sub||(one?'Le mois compte pour l’objectif et les stats.':'Le même mois sera appliqué à tous.');
+  $('rpNow').innerHTML=ico('check')+'Ce mois-ci · <b>'+esc(capF(moisAn(t)))+'</b>';
+  $('rpChips').innerHTML=[1,2,3,4,5,6].map(k=>{ const ym=ymAdd(cur,-k); const lb=ymLabel(ym); return `<button type="button" data-ym="${ym}">${esc(capF(ym.slice(0,4)===cur.slice(0,4)?MOIS_L[+ym.slice(5,7)-1]:lb))}</button>`; }).join('');
+  $('rpY').dataset.k=''; fillMonthSel($('rpM'),$('rpY'),t); rpYearChanged();
+  const el=$('readPick'); el.setAttribute('aria-hidden','false'); void el.offsetWidth; el.classList.add('on'); layerPush();
+  haptic(6); setTimeout(()=>{ if(rpOpen()) $('rpNow').focus({preventScroll:true}); },40); }
+function rpYearChanged(){ const t=todayISO(), cy=+t.slice(0,4), cm=+t.slice(5,7), y=+$('rpY').value||0; const ms=$('rpM');
+  [...ms.options].forEach(o=>{ if(o.value) o.disabled=y===cy&&+o.value>cm; }); if(ms.selectedOptions[0]&&ms.selectedOptions[0].disabled) ms.value=String(cm); }
+function closeReadPick(fromPop){ if(!rpOpen()) return; const el=$('readPick'); el.classList.remove('on'); el.setAttribute('aria-hidden','true'); rp=null;
+  if(!fromPop&&!$('nameDlg').classList.contains('on')) layerPop(); }
+function pickRead(iso){ if(!rp) return; const {list,done}=rp; closeReadPick(); applyRead(list,iso,done); }
+// iso '' = « Lu (avant) »
+function applyRead(list,iso,done){ const now=Date.now(); const prev=list.map(b=>({b,read:b.read,dateRead:b.dateRead,updatedAt:b.updatedAt})); let n=0;
+  for(const b of list){ if(b.read&&b.dateRead===iso) continue; if(iso==='' && b.read && !b.dateRead) continue; b.read=true; b.dateRead=iso; b.updatedAt=now; n++; }
+  commit(); haptic(iso?[12,40,22]:[10,30,10]);
+  const what=iso?'lu'+(list.length>1?'s':'')+' en '+moisAn(iso):'« Lu (avant) »';
+  const msg=(list.length===1?'« '+bookLabel(list[0])+' » ':n+' livre'+(n>1?'s':'')+' ')+what+(list.length>n&&list.length>1?' · '+(list.length-n)+' déjà à jour':'');
+  done&&done(iso,n);
+  toast(msg,n?{label:'Annuler',fn:()=>{ const t=Date.now(); prev.forEach(p=>{ p.b.read=p.read; p.b.dateRead=p.dateRead; p.b.updatedAt=t; }); commit(); renderAll(); toast('Annulé'); }}:null); }
 
 /* ---------- Count-up & anneaux ---------- */
 function countUp(root){ root.querySelectorAll('[data-count]').forEach(el=>{ const to=+el.dataset.count, suf=el.dataset.suf||''; if(RM()||!to){ el.textContent=f(to,0)+suf; return; }
@@ -1373,15 +1423,15 @@ function renderSeries(){
       <div class="bar"><i data-p="${p.toFixed(3)}"></i></div>
       <div class="miss-t">${g.missing.length?`<span class="orange">Manquants : ${esc(compactRange(g.missing))}</span>`:'<span class="mut">Aucun tome manquant'+(g.total?'':' (indique le nombre total de tomes pour vérifier)')+'</span>'}</div>
       <div class="vols">${items}</div>
-      <div class="sacts"><button class="btn sec sm" data-sact="addvol">${ico('plus')}Tomes</button>${unread?'<button class="btn sec sm" data-sact="next">✓ Tome suivant lu</button><button class="btn sec sm" data-sact="allbefore">Tout Lu (avant)</button>':''}<button class="btn ghost sm" data-sact="total">Nb total</button><button class="btn ghost sm" data-sact="list">Voir</button></div></div>`; }).join('')
+      <div class="sacts"><button class="btn sec sm" data-sact="addvol">${ico('plus')}Tomes</button>${unread?'<button class="btn sec sm" data-sact="next">✓ Tome suivant lu</button><button class="btn sec sm" data-sact="allread">✓ Tout lu…</button>':''}<button class="btn ghost sm" data-sact="total">Nb total</button><button class="btn ghost sm" data-sact="list">Voir</button></div></div>`; }).join('')
     : `<div class="empty">${SVG_EMPTY}<h3>Aucune série</h3><p>Renseigne le champ « Série » en ajoutant un livre, ou utilise <b>+ → Tomes</b> pour ajouter One Piece 1 à 20 d’un coup.</p></div>`;
   animateRings($('serList'),prev.b.length?prev:null);
 }
 function seriesClick(e){
   const box=e.target.closest('[data-ser]'); if(!box) return; const g=seriesGroups().find(x=>x.key===box.dataset.ser); if(!g) return;
   const v=e.target.closest('[data-vol]');
-  if(v){ const b=getBook(v.dataset.vol); if(!b) return; setRead(b,!b.read); commit(); haptic(b.read?[10,30,15]:8); toast(bookLabel(b)+(b.read?' : lu en '+moisAn(b.dateRead):' : non lu')); renderAll();
-    const nb=$('serList').querySelector(`[data-vol="${CSS.escape(b.id)}"]`); if(nb&&!RM()) nb.classList.add('pop'); return; }
+  if(v){ const b=getBook(v.dataset.vol); if(!b) return; const pop=()=>{ renderAll(); const nb=$('serList').querySelector(`[data-vol="${CSS.escape(b.id)}"]`); if(nb&&!RM()) nb.classList.add('pop'); };
+    if(b.read){ setRead(b,false); commit(); haptic(8); toast(bookLabel(b)+' : non lu'); pop(); } else openReadPick([b],pop); return; }
   const a=e.target.closest('[data-sact]'); if(!a) return; const act=a.dataset.sact;
   if(act==='total'){ const r=prompt('Nombre total de tomes parus pour « '+g.name+' » (vide = inconnu)',g.total||''); if(r===null) return; const n=num(r);
     if(n!=null&&(isNaN(n)||n<1||n>2000||!Number.isInteger(n))){ alert('Nombre invalide'); return; }
@@ -1389,10 +1439,9 @@ function seriesClick(e){
   else if(act==='addvol'){ const from=(Math.max(0,...g.books.map(b=>Number.isInteger(b.volume)?b.volume:0)))+1;
     openAdd('range',{type:g.type,series:g.name,author:g.author,genre:(g.books.find(b=>b.genre)||{}).genre||''}); $('f_from').value=from; $('f_to').value=g.total&&g.total>=from?g.total:''; updForm(); }
   else if(act==='list'){ ['q','fType','fRead','fStatus','fFormat'].forEach(id=>$(id).value=''); show('lib'); $('fSeries').value=g.key; $('fSort').value='series'; renderLib(); }
-  else if(act==='next'){ const b=g.books.find(x=>!x.read&&x.status==='possede')||g.books.find(x=>!x.read); if(!b) return; setRead(b,true); commit(); haptic([10,30,15]); toast(bookLabel(b)+' : lu en '+moisAn(b.dateRead)); renderAll(); }
-  else if(act==='allbefore'){ const l=g.books.filter(b=>!b.read); if(!l.length) return;
-    if(!confirm('Marquer les '+l.length+' tome(s) non lus de « '+g.name+' » comme « Lu (avant) » ?\nIls compteront dans le total des lus, pas dans les stats mensuelles ni l’objectif.')) return;
-    l.forEach(markBefore); commit(); haptic([10,30,10]); toast(l.length+' tome'+(l.length>1?'s':'')+' marqué'+(l.length>1?'s':'')+' « Lu (avant) »'); renderAll(); }
+  else if(act==='next'){ const b=g.books.find(x=>!x.read&&x.status==='possede')||g.books.find(x=>!x.read); if(!b) return; openReadPick([b],()=>renderAll(),{sub:'Tome suivant de « '+g.name+' »'}); }
+  else if(act==='allread'){ const l=g.books.filter(b=>!b.read); if(!l.length) return;
+    openReadPick(l,()=>renderAll(),{title:'Tout « '+g.name+' » lu quand ?',sub:l.length+' tome'+(l.length>1?'s':'')+' non lu'+(l.length>1?'s':'')+' · « Lu (avant) » si tu ne sais plus'}); }
 }
 
 /* ---------- Graphique (barres empilées + ligne d'objectif) ---------- */
@@ -1521,7 +1570,7 @@ function detailClick(e){
   const b=getBook(detailId); if(!b) return; const t=e.target;
   if(t.closest('#dClose')){ closeDetail(); return; }
   if(t.closest('#dEdit')){ closeDetail(true); openEdit(b); return; }
-  if(t.closest('#dRead')){ if(b.read){ setRead(b,false); haptic(8); toast('Marqué non lu'); } else { setRead(b,true); haptic([12,40,22]); toast('« '+bookLabel(b)+' » lu en '+moisAn(b.dateRead)); } commit(); renderDetail(); if(b.read) celebrate($('dRead')); return; }
+  if(t.closest('#dRead')){ if(b.read){ setRead(b,false); haptic(8); toast('Marqué non lu'); commit(); renderDetail(); } else openReadPick([b],()=>{ if(detailOpen()&&detailId===b.id){ renderDetail(); celebrate($('dRead')); } }); return; }
   if(t.closest('#dUnread')){ e.preventDefault(); setRead(b,false); commit(); renderDetail(); toast('Marqué non lu'); return; }
   if(t.closest('#dBefore')){ markBefore(b); commit(); haptic([10,30,10]); renderDetail(); toast('« '+bookLabel(b)+' » : Lu (avant)'); return; }
   const r=t.closest('#dRate [data-r]'); if(r){ const v=+r.dataset.r; b.rating=b.rating===v?null:v; b.updatedAt=Date.now(); commit(); haptic(6); renderDetail(); return; }
@@ -1539,6 +1588,7 @@ let popIgnore=0;
 function layerPush(){ if(!history.pushState||popIgnore) return; if(!(history.state&&history.state.layer)) history.pushState({layer:1},''); }
 function layerPop(){ if(sheetOpen()||detailOpen()) return; if(history.state&&history.state.layer&&!popIgnore){ popIgnore++; history.back(); } }
 function onPop(){ if(popIgnore){ popIgnore--; if(sheetOpen()||detailOpen()) history.pushState({layer:1},''); return; }
+  if(rpOpen()){ closeReadPick(true); if(sheetOpen()||detailOpen()) history.pushState({layer:1},''); return; }
   if($('nameDlg').classList.contains('on')){ closeRename(true); return; }
   if($('scanner').style.display==='flex'){ stopScan(); layerPush(); return; }
   if(sheetOpen()){ fillForm(null); closeSheet(); } else if(detailOpen()) closeDetail(); }
@@ -1680,7 +1730,7 @@ function init(){
   $('btnSelect').addEventListener('click',()=>setSelecting(!document.body.classList.contains('selecting')));
   $('selCancel').addEventListener('click',()=>setSelecting(false));
   $('selAll').addEventListener('click',()=>{ libFiltered().forEach(b=>selIds.add(b.id)); updSel(); renderLib(); });
-  $('selBefore').addEventListener('click',()=>bulk('before')); $('selToday').addEventListener('click',()=>bulk('today')); $('selUnread').addEventListener('click',()=>bulk('unread'));
+  $('selBefore').addEventListener('click',()=>bulk('before')); $('selToday').addEventListener('click',()=>{ const l=[...selIds].map(getBook).filter(Boolean); if(l.length) openReadPick(l,()=>{ setSelecting(false); renderAll(); }); }); $('selUnread').addEventListener('click',()=>bulk('unread'));
   $('selDel').addEventListener('click',()=>{ const l=[...selIds].map(getBook).filter(Boolean); if(!l.length) return; if(l.length>1&&!confirm('Supprimer les '+l.length+' livres sélectionnés ? (annulable quelques secondes)')) return; setSelecting(false); delBooks(l); });
   $('stPeriod').addEventListener('change',()=>{ statsGrow=true; renderStats(); });
   $('chMode').addEventListener('click',e=>{ const b=e.target.closest('[data-m]'); if(!b||b.dataset.m===chMode) return; chMode=b.dataset.m; setUiPref('chMode',chMode); statsGrow=true; haptic(5); renderStats(); });
@@ -1688,6 +1738,12 @@ function init(){
   $('libSeg').addEventListener('click',e=>{ const b=e.target.closest('[data-lib]'); if(b) setLib(b.dataset.lib); });
   $('btnLibRename').addEventListener('click',()=>openRename(curLib));
   $('libList2').addEventListener('click',e=>{ const r=e.target.closest('[data-libren]'); if(r){ openRename(r.dataset.libren); return; } const g=e.target.closest('[data-libgo]'); if(g){ setLib(g.dataset.libgo,{quiet:true}); toast('Bibliothèque « '+libName()+' » affichée'); } });
+  $('rpNow').addEventListener('click',()=>pickRead(todayISO()));
+  $('rpChips').addEventListener('click',e=>{ const c=e.target.closest('[data-ym]'); if(c) pickRead(c.dataset.ym+'-01'); });
+  $('rpOk').addEventListener('click',()=>{ const v=$('rpM').value&&$('rpY').value?pickedISO($('rpM'),$('rpY'),''):''; if(!v){ toast('Choisis un mois et une année'); $('rpM').focus(); return; } pickRead(v); });
+  $('rpBefore').addEventListener('click',()=>pickRead('')); $('rpY').addEventListener('change',rpYearChanged);
+  $('rpCancel').addEventListener('click',()=>closeReadPick());
+  $('readPick').addEventListener('click',e=>{ if(e.target===$('readPick')) closeReadPick(); });
   $('nameForm').addEventListener('submit',saveRename); $('nameCancel').addEventListener('click',()=>closeRename());
   $('nameDlg').addEventListener('click',e=>{ if(e.target===$('nameDlg')) closeRename(); });
   $('f_format').addEventListener('click',e=>{ const b=e.target.closest('[data-f]'); if(b){ setFormat(b.dataset.f); haptic(5); } });
@@ -1697,7 +1753,7 @@ function init(){
   const cancel=()=>{ fillForm(null); closeSheet(); };
   $('btnCancel').addEventListener('click',cancel); $('btnSheetX').addEventListener('click',cancel);
   $('sheetBg').addEventListener('click',()=>{ if(sheetOpen()) cancel(); else closeDetail(); });
-  addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('nameDlg').classList.contains('on')) closeRename(); else if($('scanner').style.display==='flex') stopScan(); else if(sheetOpen()) cancel(); else if(detailOpen()) closeDetail(); else if(document.body.classList.contains('selecting')) setSelecting(false); } });
+  addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(rpOpen()) closeReadPick(); else if($('nameDlg').classList.contains('on')) closeRename(); else if($('scanner').style.display==='flex') stopScan(); else if(sheetOpen()) cancel(); else if(detailOpen()) closeDetail(); else if(document.body.classList.contains('selecting')) setSelecting(false); } });
   $('modes').addEventListener('click',e=>{ const m=e.target.closest('[data-mode]'); if(m){ haptic(5); setMode(m.dataset.mode); } });
   $('btnDel').addEventListener('click',()=>{ const b=getBook($('f_id').value); if(b&&delBook(b)){ fillForm(null); closeSheet(); } });
   $('f_read').addEventListener('change',()=>{ if($('f_read').checked&&!$('f_dateRead').value&&!fBefore) $('f_dateRead').value=todayISO(); if(!$('f_read').checked) fBefore=false; updForm(); });
