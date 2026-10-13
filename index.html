@@ -380,8 +380,29 @@ main.switching .page.on{opacity:0;transform:translate3d(0,6px,0)}
 .rpchips::-webkit-scrollbar{display:none}
 .rpchips button{flex:none;border:1px solid var(--line2);background:rgba(6,11,29,.45);color:var(--txt2);border-radius:99px;padding:8px 13px;font-size:13.5px;transition:background .2s,border-color .2s}
 .rpchips button:active{background:rgba(217,180,90,.18);border-color:var(--gold)}
-.rpother{display:flex;gap:8px;margin-top:12px;align-items:stretch}
-.rpother .btn{flex:none}
+/* Sélecteur année + grille de 12 mois (commun : « Lu quand ? », formulaire, fiche) */
+.ymp{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+#rpGrid{margin-top:14px}
+.ympH{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.ympA,.ympY{height:40px;border-radius:12px;border:1px solid var(--line2);background:rgba(6,11,29,.45);transition:opacity .2s,background .2s,transform .15s}
+.ympA{flex:0 0 46px;font-size:22px;line-height:1;color:var(--txt);display:grid;place-items:center;padding:0 0 3px}
+.ympA:disabled{opacity:.25}
+.ympA:active:not(:disabled),.ympY:active{transform:scale(.94);background:rgba(217,180,90,.15)}
+.ympY{flex:1;min-width:0;color:var(--gold2);font-family:var(--serif);font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px}
+.ympC{font-family:system-ui,sans-serif;font-size:11px;color:var(--mut)}
+.ympG{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ympG button{height:42px;border-radius:12px;border:1px solid var(--line2);background:rgba(6,11,29,.45);color:var(--txt2);font-size:14.5px;padding:0;transition:background .2s,border-color .2s,color .2s,transform .15s}
+.ympG button.now{border-color:rgba(217,180,90,.6);color:var(--txt)}
+.ympG button.on{background:linear-gradient(180deg,var(--gold2),var(--gold) 60%,var(--gold3));color:#1d1606;border-color:rgba(255,230,160,.5);font-weight:700}
+.ympG button:disabled{opacity:.25}
+.ympG button:active:not(:disabled){transform:scale(.93)}
+.ympYs{max-height:192px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.ympYs::-webkit-scrollbar{display:none}
+.ympG.slr{animation:ympR .26s var(--spring)}.ympG.sll{animation:ympL .26s var(--spring)}
+@keyframes ympR{from{opacity:.2;transform:translate3d(26px,0,0)}}@keyframes ympL{from{opacity:.2;transform:translate3d(-26px,0,0)}}
+@media(prefers-reduced-motion:reduce){.ympG.slr,.ympG.sll{animation:none}}
+.datebox,.dopts{flex-direction:column;align-items:stretch}
+.datebox .bfr,.dopts .bfr{align-self:flex-start}
 .rpfoot{display:flex;gap:8px;margin-top:12px}
 .rpfoot .btn{flex:1}
 @media(min-width:700px){ #readPick{align-items:center} #readPick .rpbox{border-radius:24px;border-bottom:1px solid rgba(217,180,90,.35);transform:translate3d(0,30px,0) scale(.97);opacity:0;transition:transform .3s var(--spring),opacity .2s} #readPick.on .rpbox{opacity:1} #readPick .grab{display:none} }
@@ -655,7 +676,7 @@ body.selecting .fmt{display:none}
     </div>
     <div class="fsec">Lecture</div>
     <label class="switch"><span>Lu</span><input type="checkbox" id="f_read"></label>
-    <div id="w_date" class="hidden"><div class="datebox"><input type="hidden" id="f_dateRead"><div class="msel"><select id="f_rm" aria-label="Mois de lecture"></select><select id="f_ry" class="yr" aria-label="Année de lecture"></select></div><button type="button" class="bfr" id="f_before">Lu (avant)</button></div></div>
+    <div id="w_date" class="hidden"><div class="datebox"><input type="hidden" id="f_dateRead"><div class="ymp" id="f_ymp" role="group" aria-label="Mois de lecture"></div><button type="button" class="bfr" id="f_before">Lu (avant)</button></div></div>
     <div class="small mut" id="dateHint" style="margin-top:6px"></div>
     <label style="margin-top:14px">Note</label><div class="rate" id="f_rate"></div>
     <div class="fsec">Couverture &amp; notes</div>
@@ -682,7 +703,7 @@ body.selecting .fmt{display:none}
     <div class="dchips" id="dChips"></div>
     <div class="dread">
       <button class="btn" id="dRead"></button>
-      <div class="dopts" id="dOpts"><div class="msel"><select id="dM" aria-label="Mois de lecture"></select><select id="dY" class="yr" aria-label="Année de lecture"></select></div><button class="bfr" id="dBefore">Lu (avant)</button></div>
+      <div class="dopts" id="dOpts"><div class="ymp" id="dYmp" role="group" aria-label="Mois de lecture"></div><button class="bfr" id="dBefore">Lu (avant)</button></div>
       <div class="small mut" id="dReadHint" style="text-align:center"></div>
     </div>
     <div class="drate" id="dRate"></div>
@@ -710,8 +731,7 @@ body.selecting .fmt{display:none}
 <div id="readPick" role="dialog" aria-modal="true" aria-labelledby="rpT" aria-hidden="true"><div class="rpbox"><div class="grab"></div>
   <h3 id="rpT">Lu quand ?</h3><div class="small mut" id="rpSub"></div>
   <button class="btn" id="rpNow" type="button"></button>
-  <div class="rpchips" id="rpChips" aria-label="Mois précédents"></div>
-  <div class="rpother"><div class="msel"><select id="rpM" aria-label="Mois"></select><select id="rpY" class="yr" aria-label="Année"></select></div><button class="btn sec" id="rpOk" type="button">OK</button></div>
+  <div class="ymp" id="rpGrid" role="group" aria-label="Autre mois"></div>
   <div class="rpfoot"><button class="btn sec" id="rpBefore" type="button">Lu (avant)</button><button class="btn ghost" id="rpCancel" type="button">Annuler</button></div></div></div>
 <div id="mergeDlg" role="dialog" aria-modal="true" aria-labelledby="mgT"><div class="box"><h3 id="mgT">Fusionner</h3><p class="small mut" style="margin:0 0 10px">Choisis la série à garder : tous les tomes prendront son nom (annulable).</p>
   <input id="mgQ" placeholder="Chercher une série" autocomplete="off"><div id="mgList"></div><button type="button" class="btn sec" id="mgCancel" style="width:100%;margin-top:10px">Annuler</button></div></div>
@@ -723,7 +743,7 @@ body.selecting .fmt{display:none}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '3.0';
+const APP_VERSION = '3.1';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -779,15 +799,30 @@ const moisAn=iso=>iso?MOIS_L[+iso.slice(5,7)-1]+' '+iso.slice(0,4):'';
 const mmYYYY=iso=>iso?iso.slice(5,7)+'/'+iso.slice(0,4):'';
 const capF=s=>s?s[0].toUpperCase()+s.slice(1):s;
 /* Sélecteur mois + année (pas de jour) */
-function fillMonthSel(mSel,ySel,iso){ const t=todayISO(), cy=+t.slice(0,4), cm=+t.slice(5,7); const y=iso?+iso.slice(0,4):0, m=iso?+iso.slice(5,7):0;
-  const lo=Math.min(cy-60,y||cy); let yo='<option value="">Année</option>'; for(let k=cy;k>=lo;k--) yo+=`<option value="${k}"${k===y?' selected':''}>${k}</option>`;
-  const key=y+':'+m+':'+cy+':'+cm; if(ySel.dataset.k!==key){ ySel.innerHTML=yo; mSel.innerHTML='<option value="">Mois</option>'+MOIS_L.map((n,i)=>`<option value="${i+1}"${i+1===m?' selected':''}${y===cy&&i+1>cm?' disabled':''}>${capF(n)}</option>`).join(''); ySel.dataset.k=key; }
-  mSel.value=m?String(m):''; ySel.value=y?String(y):''; }
-function pickedISO(mSel,ySel,prev){ const t=todayISO(), cy=+t.slice(0,4), cm=+t.slice(5,7); let m=+mSel.value||0, y=+ySel.value||0;
-  if(!m&&!y) return '';
-  if(!y) y=m>cm?cy-1:cy; if(!m) m=(prev&&+prev.slice(5,7))||(y===cy?cm:1);
-  if(y>cy) y=cy; if(y===cy&&m>cm) m=cm;
-  const ym=y+'-'+String(m).padStart(2,'0'); return prev&&prev.slice(0,7)===ym?prev:(ym===t.slice(0,7)?t:ym+'-01'); }
+// Année : ‹ 2026 › (ou glisser à gauche/droite), toucher l'année → grille des années ; puis 12 mois. Mois futurs désactivés, toutes les années passées jusqu'à YMP_LO.
+const MOIS_C=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const YMP_LO=1990;
+const ympLo=v=>Math.min(YMP_LO,v?+v.slice(0,4):YMP_LO);
+function ympISO(y,m,prev){ const t=todayISO(), ym=y+'-'+String(m).padStart(2,'0'); return prev&&prev.slice(0,7)===ym?prev:(ym===t.slice(0,7)?t:ym+'-01'); }
+function ympShow(h,iso,o={}){ const cy=+todayISO().slice(0,4); iso=iso||''; h._k0=o.key||''; const key=h._k0+'|'+iso;
+  if(o.reset||h._key!==key){ h._y=iso?Math.min(+iso.slice(0,4),cy):cy; h._mode='m'; } h._key=key; h._v=iso; ympRender(h); }
+function ympRender(h,dir){ const t=todayISO(), cy=+t.slice(0,4), cm=+t.slice(5,7), v=h._v||'', vy=v?+v.slice(0,4):0, vm=v?+v.slice(5,7):0, lo=ympLo(v);
+  const y=h._y=Math.max(lo,Math.min(cy,h._y||cy)), yrs=h._mode==='y'; let g;
+  if(yrs){ let s=''; for(let k=cy;k>=lo;k--) s+=`<button type="button" data-y="${k}" class="${k===y?'on':''}${k===cy?' now':''}" aria-pressed="${k===y}">${k}</button>`; g=`<div class="ympG ympYs" role="group" aria-label="Années">${s}</div>`; }
+  else g=`<div class="ympG${dir?(dir>0?' slr':' sll'):''}" role="group" aria-label="Mois ${y}">`+MOIS_C.map((n,i)=>{ const m=i+1, fut=y===cy&&m>cm, on=vy===y&&vm===m;
+    return `<button type="button" data-m="${m}" class="${on?'on':''}${y===cy&&m===cm?' now':''}"${fut?' disabled':''} aria-pressed="${on}" aria-label="${capF(MOIS_L[i])} ${y}${fut?' (à venir)':''}">${capF(n)}</button>`; }).join('')+'</div>';
+  h.innerHTML=`<div class="ympH"><button type="button" class="ympA" data-yd="-1"${y<=lo||yrs?' disabled':''} aria-label="Année précédente">‹</button><button type="button" class="ympY" aria-expanded="${yrs}" aria-label="Année ${y} : choisir une autre année">${y}<span class="ympC" aria-hidden="true">${yrs?'▲':'▼'}</span></button><button type="button" class="ympA" data-yd="1"${y>=cy||yrs?' disabled':''} aria-label="Année suivante">›</button></div>`+g;
+  if(yrs){ const G=h.querySelector('.ympYs'), on=G.querySelector('.on'); if(on) G.scrollTop=Math.max(0,on.offsetTop-G.offsetTop-(G.clientHeight-on.offsetHeight)/2); } }
+function ympStep(h,d){ const cy=+todayISO().slice(0,4), y=h._y+d; if(h._mode==='y'||y<ympLo(h._v)||y>cy) return false; h._y=y; haptic(4); ympRender(h,d); return true; }
+function ympOn(h,pick){
+  h.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b.disabled||!h.contains(b)) return; e.preventDefault(); e.stopPropagation();
+    if(b.dataset.yd){ ympStep(h,+b.dataset.yd); return; }
+    if(b.classList.contains('ympY')){ h._mode=h._mode==='y'?'m':'y'; haptic(4); ympRender(h); return; }
+    if(b.dataset.y){ h._y=+b.dataset.y; h._mode='m'; haptic(4); ympRender(h); return; }
+    if(b.dataset.m){ const iso=ympISO(h._y,+b.dataset.m,h._v); h._v=iso; h._key=h._k0+'|'+iso; ympRender(h); pick(iso); } });
+  let sx=0,sy=0,on=false;
+  h.addEventListener('touchstart',e=>{ const p=e.touches[0]; sx=p.clientX; sy=p.clientY; on=e.touches.length===1; },{passive:true});
+  h.addEventListener('touchend',e=>{ if(!on) return; on=false; const p=e.changedTouches[0], dx=p.clientX-sx, dy=p.clientY-sy; if(Math.abs(dx)>45&&Math.abs(dx)>1.6*Math.abs(dy)) ympStep(h,dx<0?1:-1); },{passive:true}); }
 function bookLabel(b){ return b.title || (b.series? b.series+(b.volume!=null?' – Tome '+f(b.volume,1):'') : 'Sans titre'); }
 
 /* ---------- Modèle ---------- */
@@ -931,7 +966,7 @@ function fillForm(b,preset={}){
 function updForm(){
   const multi=$('f_multi').checked&&!$('f_id').value; $('w_range2').classList.toggle('hidden',!multi); $('w_vol').classList.toggle('hidden',multi);
   $('w_date').classList.toggle('hidden',!$('f_read').checked); $('f_before').classList.toggle('on',$('f_read').checked&&!$('f_dateRead').value);
-  if($('f_read').checked) fillMonthSel($('f_rm'),$('f_ry'),$('f_dateRead').value);
+  if($('f_read').checked) ympShow($('f_ymp'),$('f_dateRead').value,{key:$('f_id').value||'new'});
   $('dateHint').textContent=$('f_read').checked?($('f_dateRead').value?'Compté dans les lectures '+deMois($('f_dateRead').value)+' et dans l’objectif.':'Lu (avant) : compte dans le total et le % de lus, pas dans les stats mensuelles ni l’objectif.'):'';
   if(multi){ const a=num($('f_from').value), z=num($('f_to').value); $('rangeInfo').textContent=(Number.isInteger(a)&&Number.isInteger(z)&&z>=a)?'→ '+(z-a+1)+' tome'+(z>a?'s':''):''; }
   const u=safeImg($('f_cover').value); const im=$('f_coverImg'); if(u){ if(im.getAttribute('src')!==u){ im.classList.remove('ok'); im.onload=()=>im.classList.add('ok'); im.onerror=()=>im.classList.add('hidden'); im.src=u; } im.classList.remove('hidden'); } else { im.removeAttribute('src'); im.classList.add('hidden'); }
@@ -1346,12 +1381,9 @@ function openReadPick(list,done,o={}){ list=list.filter(Boolean); if(!list.lengt
   $('rpT').textContent=one?'« '+bookLabel(list[0])+' » lu quand ?':(o.title||list.length+' livres lus quand ?');
   $('rpSub').textContent=o.sub||(one?'Le mois compte pour l’objectif et les stats.':'Le même mois sera appliqué à tous.');
   $('rpNow').innerHTML=ico('check')+'Ce mois-ci · <b>'+esc(capF(moisAn(t)))+'</b>';
-  $('rpChips').innerHTML=[1,2,3,4,5,6].map(k=>{ const ym=ymAdd(cur,-k); const lb=ymLabel(ym); return `<button type="button" data-ym="${ym}">${esc(capF(ym.slice(0,4)===cur.slice(0,4)?MOIS_L[+ym.slice(5,7)-1]:lb))}</button>`; }).join('');
-  $('rpY').dataset.k=''; fillMonthSel($('rpM'),$('rpY'),t); rpYearChanged();
+  ympShow($('rpGrid'),'',{reset:1});
   const el=$('readPick'); el.setAttribute('aria-hidden','false'); void el.offsetWidth; el.classList.add('on'); layerPush();
   haptic(6); setTimeout(()=>{ if(rpOpen()) $('rpNow').focus({preventScroll:true}); },40); }
-function rpYearChanged(){ const t=todayISO(), cy=+t.slice(0,4), cm=+t.slice(5,7), y=+$('rpY').value||0; const ms=$('rpM');
-  [...ms.options].forEach(o=>{ if(o.value) o.disabled=y===cy&&+o.value>cm; }); if(ms.selectedOptions[0]&&ms.selectedOptions[0].disabled) ms.value=String(cm); }
 function closeReadPick(fromPop){ if(!rpOpen()) return; const el=$('readPick'); el.classList.remove('on'); el.setAttribute('aria-hidden','true'); rp=null;
   if(!fromPop&&!$('nameDlg').classList.contains('on')) layerPop(); }
 function pickRead(iso){ if(!rp) return; const {list,done}=rp; closeReadPick(); applyRead(list,iso,done); }
@@ -1644,7 +1676,7 @@ function renderDetail(){
   $('dTitle').textContent=bookLabel(b); $('dAuthor').textContent=b.author||'';
   $('dChips').innerHTML=`<span class="tag ${b.type}">${b.type}</span> ${b.status==='envie'?'<span class="tag envie">Liste d’envies</span>':''}<div>${[b.series?esc(b.series)+(b.volume!=null?' · Tome '+f(b.volume,1):''):null,b.genre?esc(b.genre):null].filter(Boolean).map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
   const r=$('dRead'); r.className='btn'+(b.read?' isread':''); r.innerHTML=b.read?(s==='date'?ico('check')+'Lu en '+moisAn(b.dateRead):ico('check')+'Lu (avant)'):ico('check')+'Marquer comme lu (ce mois-ci)';
-  fillMonthSel($('dM'),$('dY'),b.dateRead||''); $('dBefore').classList.toggle('on',s==='before');
+  ympShow($('dYmp'),b.read?b.dateRead||'':'',{key:b.id}); $('dBefore').classList.toggle('on',s==='before');
   $('dReadHint').innerHTML=s==='date'?`Compté dans les lectures ${deMois(b.dateRead)} · <a href="#" id="dUnread">marquer non lu</a>`:s==='before'?'Lu (avant) : compte dans le total et le % de lus, pas dans les stats mensuelles ni l’objectif · <a href="#" id="dUnread">marquer non lu</a>':'Choisis le mois de lecture, ou « Lu (avant) » pour une lecture ancienne.';
   $('dRate').innerHTML=[1,2,3,4,5].map(i=>`<button data-r="${i}" class="${b.rating&&i<=b.rating?'on':''}" aria-label="${i} étoile${i>1?'s':''}">★</button>`).join('');
   $('dNotes').textContent=b.notes||'';
@@ -1840,7 +1872,7 @@ function init(){
   $('stYearGoal').addEventListener('click',itemClick);
   $('serList').addEventListener('click',seriesClick);
   $('detail').addEventListener('click',detailClick);
-  ['dM','dY'].forEach(id=>$(id).addEventListener('change',()=>{ const b=getBook(detailId); if(!b) return; const v=pickedISO($('dM'),$('dY'),b.dateRead); if(!v){ renderDetail(); return; } if(b.read&&b.dateRead===v){ renderDetail(); return; } b.read=true; b.dateRead=v; b.updatedAt=Date.now(); commit(); renderDetail(); toast('Lu en '+moisAn(v)); }));
+  ympOn($('dYmp'),v=>{ const b=getBook(detailId); if(!b) return; if(b.read&&b.dateRead===v){ renderDetail(); return; } applyRead([b],v,()=>{ renderDetail(); renderSoon(300); }); });
   $('q').addEventListener('input',()=>{ libLimit=LIB_PAGE; renderLib(); }); $('qs').addEventListener('input',renderSeries);
   ['fType','fRead','fStatus','fSeries','fSort','fFormat'].forEach(id=>$(id).addEventListener('change',()=>{ libLimit=LIB_PAGE; renderLib(); }));
   ['fsType','fsState'].forEach(id=>$(id).addEventListener('change',renderSeries));
@@ -1858,9 +1890,8 @@ function init(){
   $('btnLibRename').addEventListener('click',()=>openRename(curLib));
   $('libList2').addEventListener('click',e=>{ const r=e.target.closest('[data-libren]'); if(r){ openRename(r.dataset.libren); return; } const g=e.target.closest('[data-libgo]'); if(g){ setLib(g.dataset.libgo,{quiet:true}); toast('Bibliothèque « '+libName()+' » affichée'); } });
   $('rpNow').addEventListener('click',()=>pickRead(todayISO()));
-  $('rpChips').addEventListener('click',e=>{ const c=e.target.closest('[data-ym]'); if(c) pickRead(c.dataset.ym+'-01'); });
-  $('rpOk').addEventListener('click',()=>{ const v=$('rpM').value&&$('rpY').value?pickedISO($('rpM'),$('rpY'),''):''; if(!v){ toast('Choisis un mois et une année'); $('rpM').focus(); return; } pickRead(v); });
-  $('rpBefore').addEventListener('click',()=>pickRead('')); $('rpY').addEventListener('change',rpYearChanged);
+  ympOn($('rpGrid'),v=>setTimeout(()=>pickRead(v),120)); // petit délai : on voit le mois choisi s'allumer
+  $('rpBefore').addEventListener('click',()=>pickRead(''));
   $('rpCancel').addEventListener('click',()=>closeReadPick());
   $('readPick').addEventListener('click',e=>{ if(e.target===$('readPick')) closeReadPick(); });
   $('nameForm').addEventListener('submit',saveRename);
@@ -1880,7 +1911,7 @@ function init(){
   $('f_read').addEventListener('change',()=>{ if($('f_read').checked&&!$('f_dateRead').value&&!fBefore) $('f_dateRead').value=todayISO(); if(!$('f_read').checked) fBefore=false; updForm(); });
   $('f_before').addEventListener('click',()=>{ fBefore=!fBefore; if(fBefore) $('f_dateRead').value=''; else $('f_dateRead').value=todayISO(); haptic(5); updForm(); });
   $('f_dateRead').addEventListener('input',()=>{ if($('f_dateRead').value) fBefore=false; updForm(); });
-  ['f_rm','f_ry'].forEach(id=>$(id).addEventListener('change',()=>{ const v=pickedISO($('f_rm'),$('f_ry'),$('f_dateRead').value); if(v){ $('f_dateRead').value=v; fBefore=false; } updForm(); }));
+  ympOn($('f_ymp'),v=>{ $('f_dateRead').value=v; fBefore=false; haptic(5); updForm(); });
   ['f_from','f_to','f_cover'].forEach(id=>$(id).addEventListener('input',updForm)); $('f_multi').addEventListener('change',()=>{ document.querySelectorAll('#modes .mode').forEach(x=>x.classList.toggle('on',x.dataset.mode===($('f_multi').checked?'range':'manual'))); updForm(); });
   $('f_series').addEventListener('change',seriesChanged);
   $('f_coverFile').addEventListener('change',e=>{ coverFromFile(e.target.files[0]); e.target.value=''; });
