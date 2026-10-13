@@ -1,4 +1,4 @@
-const CACHE = 'ma-bibliotheque-v4';
+const CACHE = 'ma-bibliotheque-v5';
 const COVERS = 'ma-bibliotheque-covers-v1';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 // Images de couverture mises en cache pour l'affichage hors ligne (jamais les API, jamais api.github.com)
