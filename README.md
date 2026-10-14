@@ -2,7 +2,7 @@
 
 Application web (PWA) pour suivre ses livres, mangas et BD : ajout par ISBN ou scan du code-barres, séries de mangas avec tomes manquants, statut Possédé / Liste d'envies, case « Lu » avec le mois de lecture, note, statistiques de lecture par mois.
 
-- Un seul fichier `index.html`, sans build, fonctionne hors ligne (service worker, cache `ma-bibliotheque-v10`).
+- Un seul fichier `index.html`, sans build, fonctionne hors ligne (service worker, cache `ma-bibliotheque-v11`).
 - Données dans le navigateur (localStorage, format versionné), export/import JSON et CSV. Sauvegarde automatique avant « Effacer » / import « Remplacer », restaurable dans Réglages.
 - Recherche ISBN sans clé d'API : **BnF** (ISBN-13 puis ISBN-10), **Sudoc** (bibliothèques universitaires), **Open Library** (API + recherche), Google Books en dernier recours ; couverture par ISBN (Open Library, BnF, Amazon). Si un tome est trop récent pour les catalogues, l'app reconnaît la série d'après les ISBN de tes tomes (même éditeur) et préremplit le tome suivant. ISBN-10 converti en ISBN-13, doublons signalés.
 - Séries : noms rapprochés automatiquement (casse, accents, ponctuation, « Édition originale », « Tome N »), suggestions « Même série ? », **Fusionner…**, **Renommer**, « uniformiser » ; les renommages sont synchronisés (un tome ajouté ailleurs avec l'ancien nom rejoint la série).

@@ -117,7 +117,19 @@ async function refreshAll(list,ctx,o={}){ const prev=(o.prev&&o.prev.series)||{}
   async function worker(){ while(i<list.length){ const it=list[i++]; let r; try{ r=await fetchSeries(it,ctx); }catch(e){ r={key:it.key,name:it.name,err:'erreur'}; }
       if(r.err){ failed++; if(prev[it.key]) r=Object.assign({},prev[it.key],{err:r.err}); } res.series[it.key]=r; done++; o.onProgress&&o.onProgress(done,list.length); if(o.delay) await new Promise(z=>setTimeout(z,o.delay)); } }
   await Promise.all(Array.from({length:Math.min(conc,list.length)},worker)); res.failed=failed; res.count=list.length; return res; }
-function mergeReleases(a,b){ if(!a||!a.series) return b||null; if(!b||!b.series) return a; const s=Object.assign({},a.series); for(const [k,v] of Object.entries(b.series)){ const p=s[k]; if(!p||(v&&(+v.at||0)>(+p.at||0)&&!(v.err&&!p.err))) s[k]=v; }
+/* Fichier de résultats (gist) : on ne garde que des champs connus et bien formés, quoi qu'il contienne */
+const DATE_RE=/^\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$/;
+function cleanSeries(k,v){ if(!v||typeof v!=='object') return null; const o={key:String(v.key||k).slice(0,200),name:String(v.name||'').slice(0,300),at:+v.at||0,status:v.status==='encours'||v.status==='terminee'?v.status:null,
+    nb:Number.isInteger(+v.nb)&&+v.nb>0&&+v.nb<5000&&v.nb!==null?+v.nb:null,vols:{},src:Array.isArray(v.src)?v.src.filter(x=>x&&typeof x.u==='string'&&/^https:\/\//.test(x.u)).slice(0,10).map(x=>({n:String(x.n||'').slice(0,40),u:x.u.slice(0,600)})):[]};
+  if(v.err) o.err=String(v.err).slice(0,60);
+  for(const [kk,x] of Object.entries(v.vols&&typeof v.vols==='object'?v.vols:{})){ const n=+kk; if(!Number.isInteger(n)||n<1||n>4999||!x||typeof x!=='object') continue; const c={v:n};
+    if(typeof x.fr==='string'&&DATE_RE.test(x.fr)){ c.fr=x.fr; c.fp=x.fr.length===10?'d':x.fr.length===7?'m':'y'; } if(typeof x.jp==='string'&&DATE_RE.test(x.jp)) c.jp=x.jp;
+    const i=isbn13(x.isbn); if(i) c.isbn=i; if(x.out) c.out=1; o.vols[n]=c; }
+  return o; }
+function cleanRel(r){ if(!r||typeof r!=='object'||!r.series||typeof r.series!=='object') return null; const s={};
+  for(const [k,v] of Object.entries(r.series)){ if(!k||k.length>200||k==='__proto__'||k==='constructor'||k==='prototype') continue; const c=cleanSeries(k,v); if(c) s[k]=c; }
+  return {v:VERSION,at:+r.at||0,by:r.by==='action'?'action':'app',series:s}; }
+function mergeReleases(a,b){ a=cleanRel(a); b=cleanRel(b); if(!a) return b; if(!b) return a; const s=Object.assign({},a.series); for(const [k,v] of Object.entries(b.series)){ const p=s[k]; if(!p||(v&&(+v.at||0)>(+p.at||0)&&!(v.err&&!p.err))) s[k]=v; }
   return {v:VERSION,at:Math.max(+a.at||0,+b.at||0),by:(+b.at||0)>(+a.at||0)?b.by:a.by,series:s}; }
 
 /* --- Vue par bibliothèque : prochains tomes, « déjà sorti », cette semaine --- */
@@ -142,5 +154,5 @@ function lastTuesday6(now){ const p=parisParts(now); const base=Date.UTC(p.y,p.m
 function parisToday(now){ const p=parisParts(now); return p.y+'-'+String(p.m).padStart(2,'0')+'-'+String(p.d).padStart(2,'0'); }
 
 return {VERSION,FILE,DATA_FILE,UA,LIBS,norm,baseKey,serKey,sameSeries,isbn13,isbn10,covers,wDate,tplBlocks,tplParams,parseTomes,parseInfobox,titleKey,parseBnf,bnfRecSeries,
-  fromWikipedia,fromBnf,watchList,wanted,fetchSeries,refreshAll,mergeReleases,viewFor,weekRange,weekCount,parisParts,parisToUTC,lastTuesday6,parisToday};
+  fromWikipedia,fromBnf,watchList,wanted,fetchSeries,refreshAll,mergeReleases,cleanRel,viewFor,weekRange,weekCount,parisParts,parisToUTC,lastTuesday6,parisToday};
 });

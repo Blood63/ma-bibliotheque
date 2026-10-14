@@ -788,7 +788,7 @@ body.selecting .fmt{display:none}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '3.4';
+const APP_VERSION = '3.5';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -1609,7 +1609,7 @@ function serRelLine(g,it){ if(!it) return ''; let h='';
   if(it.user!=='terminee'&&!it.complete){ const o=it.next.find(x=>!x.wish); let t='';
     if(o) t=o.st==='out'?`<b>Tome ${o.v} déjà sorti</b>${o.fr?' · '+esc(relDateTxt(o).toLowerCase()):''}`:o.st==='soon'?`Prochain : tome ${o.v} · ${esc(relDateTxt(o).toLowerCase())}`:`Tome ${o.v} : date pas encore annoncée`;
     else if(it.next.length) t='Tomes à venir déjà dans tes envies';
-    else if(it.checked) t=`Tome ${it.last+1} : ${it.jp?'paru au Japon, pas encore annoncé en France':'date pas encore annoncée'}`;
+    else if(it.checked) t=it.jp&&it.jp.v?`Tome ${it.jp.v} : paru au Japon, pas encore annoncé en France`:`Tome ${it.last+1} : date pas encore annoncée`;
     if(t) h+=`<a href="#" class="srl rel${o&&o.st==='out'?' out':''}" data-sact="rel">📅 ${t} ›</a>`; }
   return h; }
 function renderSeries(){
@@ -1846,12 +1846,13 @@ function renderBackup(){ const bk=readBackup(); $('bkInfo').textContent=bk?('Sau
   const ph=DB.books.filter(b=>String(b.cover).startsWith('data:')).length; $('storeInfo').textContent='Stockage utilisé sur cet appareil : '+f(n*2/1048576,1)+' Mo'+(ph?' (dont '+ph+' photo'+(ph>1?'s':'')+' de couverture)':'')+' · limite habituelle ≈ 5 Mo.'; }
 /* ---------- Prochaines sorties (module partagé releases.js : Wikipédia + BnF) ---------- */
 const REL_KEY=KEY+'.rel'; let REL=null, relBusy=false, relProg='', serView='ser', relMemo=null;
-function loadRel(){ try{ const o=JSON.parse(localStorage.getItem(REL_KEY)||'null'); REL=o&&o.series&&typeof o.series==='object'?o:null; }catch(e){ REL=null; } relMemo=null; }
+function loadRel(){ try{ const o=JSON.parse(localStorage.getItem(REL_KEY)||'null'); REL=MBRel.cleanRel(o); }catch(e){ REL=null; } relMemo=null; }
 function saveRel(){ relMemo=null; try{ if(REL) localStorage.setItem(REL_KEY,JSON.stringify(REL)); }catch(e){} }
 function relView(lib=curLib){ const k=dataRev+'|'+(REL?REL.at:0)+'|'+lib+'|'+todayISO()+'|'+DB.books.length; if(relMemo&&relMemo.k===k) return relMemo.v; const v=MBRel.viewFor(DB,REL,lib,todayISO()); relMemo={k,v}; return v; }
+const relDateOk=d=>typeof d==='string'&&/^\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$/.test(d);
 function relSyncWishes(){ if(!REL||!REL.series) return 0; let n=0; const now=Date.now();
   for(const b of DB.books){ if(b.status!=='envie'||!b.series||b.volume==null||DB.tomb.b[b.id]) continue; const s=REL.series[serKey(b.series,b.lib||'l1')]; const o=s&&!s.err&&s.vols&&s.vols[+b.volume];
-    if(o&&o.fr&&o.fr!==b.release&&(!b.release||o.fr.length>=b.release.length||o.fr.slice(0,b.release.length)!==b.release)){ b.release=o.fr; b.updatedAt=now; n++; } }
+    if(o&&relDateOk(o.fr)&&o.fr!==b.release&&(!b.release||o.fr.length>=b.release.length||o.fr.slice(0,b.release.length)!==b.release)){ b.release=o.fr; b.updatedAt=now; n++; } }
   if(n) commit(); return n; }
 async function relFromGist(gist){ try{ const f=gist&&gist.files&&gist.files[MBRel.FILE]; if(!f) return; let t=f.content; if(f.truncated&&f.raw_url) t=await (await fetch(f.raw_url,{cache:'no-store'})).text();
   const o=JSON.parse(t); if(!o||!o.series||typeof o.series!=='object') return; REL=MBRel.mergeReleases(REL,o); saveRel(); setTimeout(()=>{ if(relSyncWishes()) renderAll(); },0); }catch(e){} }
@@ -1878,10 +1879,11 @@ function relCover(key,o){ const c=MBRel.covers(o.isbn); return `<div class="rcv"
 function relCard(it){ const rows=it.next.map(o=>`<div class="rrow ${o.st}${o.wk?' wk':''}" data-v="${o.v}">${relCover(it.key,o)}<div class="rinfo"><b>Tome ${o.v}</b><div class="rdate">${esc(relDateTxt(o))}</div>
     <div class="rrel">${o.st==='out'?'<span class="rtag out">Déjà sorti</span>':''}${o.wk&&o.st!=='out'?'<span class="rtag wk">Cette semaine</span>':''}<span>${esc(relRelTxt(o))}</span></div></div>
     ${o.wish?`<button type="button" class="rw on" disabled>${ico('check')}Envies</button>`:`<button type="button" class="rw" data-rw="${o.v}" aria-label="Ajouter le tome ${o.v} aux envies">${ico('plus')}Envies</button>`}</div>`).join('');
-  const nx=it.last+1, tba=!it.next.length?`<div class="rtba">Tome ${nx} : ${it.jp?'pas encore annoncé en France · paru au Japon '+esc(relDateTxt({fr:it.jp,fp:it.jp.length===10?'d':it.jp.length===7?'m':'y'}).toLowerCase()):it.checked?'date pas encore annoncée':'pas encore vérifié'}</div>`:'';
+  const jd=it.jp&&typeof it.jp.d==='string'?it.jp.d:'', nx=jd?it.jp.v:it.last+1, tba=!it.next.length?`<div class="rtba">Tome ${nx} : ${jd?'pas encore annoncé en France · paru au Japon '+esc(String(relDateTxt({fr:jd,fp:jd.length===10?'d':jd.length===7?'m':'y'})).toLowerCase()):it.checked?'date pas encore annoncée':'pas encore vérifié'}</div>`:'';
   const au=it.auto==='terminee'?'terminée':it.auto==='encours'?'en cours':'';
   const sel=`<select class="pill rst" data-rs="${esc(it.key)}" aria-label="Statut de la série ${esc(it.name)}"><option value=""${!it.user?' selected':''}>Auto${au?' · '+au:''}</option><option value="encours"${it.user==='encours'?' selected':''}>En cours</option><option value="terminee"${it.user==='terminee'?' selected':''}>Terminée</option></select>`;
-  const src=it.src.length?'Source : '+[...new Map(it.src.map(s=>[s.u,s])).values()].slice(0,3).map(s=>`<a href="${esc(s.u)}" target="_blank" rel="noopener noreferrer">${esc(s.n)} ↗</a>`).join(' · '):(it.checked?'Aucune source n’a d’information sur cette série.':'');
+  const srcs=(it.src||[]).filter(s=>s&&/^https:\/\/(fr\.wikipedia\.org|catalogue\.bnf\.fr)\//.test(String(s.u||'')));
+  const src=srcs.length?'Source : '+[...new Map(srcs.map(s=>[s.u,s])).values()].slice(0,3).map(s=>`<a href="${esc(s.u)}" target="_blank" rel="noopener noreferrer">${esc(s.n)} ↗</a>`).join(' · '):(it.checked?'Aucune source n’a d’information sur cette série.':'');
   return `<div class="card rcard" data-rk="${esc(it.key)}"><div class="rhd"><div style="min-width:0"><div class="rname">${esc(it.name)}</div><div class="small mut">Tu as jusqu’au tome ${it.last}${it.nb?' · '+it.nb+' tome'+(it.nb>1?'s':'')+' en tout'+(it.auto==='terminee'?' (terminée)':''):''}</div></div>${sel}</div>${rows}${tba}${src?`<div class="rsrc mut">${src}</div>`:''}</div>`; }
 function renderRel(){ const el=$('relList'); if(!el) return; const items=relView(); const wk=[],out=[],soon=[],tba=[],done=[];
   for(const it of items){ if(it.user==='terminee'||it.complete){ done.push(it); continue; } if(!it.next.length){ tba.push(it); continue; } if(it.next.some(o=>o.wk)) wk.push(it); else if(it.next[0].st==='out') out.push(it); else soon.push(it); }
@@ -1904,11 +1906,12 @@ function relHomeCard(){ const items=relView(); const wk=[]; let out=0; for(const
     ${wk.slice(0,3).map(([it,o])=>`<div class="rl"><b>${esc(it.name)}</b> · T${o.v} — ${esc(relDateTxt(o))}${o.st==='out'?' · <span style="color:var(--gold2)">sorti</span>':''}</div>`).join('')}${wk.length>3?`<div class="small mut">+ ${wk.length-3} autre${wk.length-3>1?'s':''}</div>`:''}
     ${out?`<div class="small" style="color:var(--gold2);margin-top:4px">${out} tome${out>1?'s':''} déjà sorti${out>1?'s':''} pas encore chez toi →</div>`:''}</div>`; }
 function relBadges(){ let n=0; try{ n=MBRel.weekCount(relView().filter(it=>it.user!=='terminee'&&!it.complete)); }catch(e){} const b=$('relBdg'); if(b) b.textContent=n?String(n):'';
+  try{ if(navigator.setAppBadge&&matchMedia('(display-mode: standalone)').matches){ (n?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{}); } }catch(e){}
   const tab=document.querySelector('#tabs .tab[data-p="series"]'); if(tab){ let d=tab.querySelector('.tdot'); if(n&&!d){ d=document.createElement('i'); d.className='tdot'; tab.appendChild(d); } if(!n&&d) d.remove(); tab.setAttribute('aria-label','Séries'+(n?' · '+n+' sortie'+(n>1?'s':'')+' cette semaine':'')); } }
 function renderRelAll(){ relMemo=null; relBadges(); if(curPage==='series'&&serView==='rel') renderRel(); if(curPage==='home') renderHome(); }
 function openRelView(){ serView='rel'; setUiPref('serView','rel'); if(curPage==='series') renderSeries(); else show('series'); }
 function relDoneOpen(){ const d=document.querySelector('#relList details.rdone'); return !!(d&&d.open); }
-function relIcsList(items){ const l=[]; for(const it of items){ if(it.user==='terminee'||it.complete) continue; for(const o of it.next) if(o.st==='soon'&&o.fp==='d') l.push([it,o]); } return l; }
+function relIcsList(items){ const l=[]; for(const it of items){ if(it.user==='terminee'||it.complete) continue; for(const o of it.next) if(o.st==='soon'&&o.fp==='d'&&relDateOk(o.fr)&&o.fr.length===10) l.push([it,o]); } return l; }
 function relIcs(){ const l=relIcsList(relView()); if(!l.length){ toast('Aucune sortie datée à venir'); return; }
   const tx=s=>String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
   const fold=s=>{ const out=[]; let cur='', len=0; for(const ch of s){ const n=new TextEncoder().encode(ch).length; if(len+n>(out.length?74:75)){ out.push(cur); cur=''; len=0; } cur+=ch; len+=n; } out.push(cur); return out.join('\r\n '); };
@@ -1926,7 +1929,7 @@ function relIcs(){ const l=relIcsList(relView()); if(!l.length){ toast('Aucune s
 function relAddWish(key,v){ const it=relView().find(x=>x.key===key); const o=it&&it.next.find(n=>n.v===v); if(!o) return;
   if(LB().some(b=>b.series&&serKey(b.series)===key&&+b.volume===v)){ toast('Déjà dans ta bibliothèque'); renderRelAll(); return; }
   const img=document.querySelector('#relList [data-cov="'+CSS.escape(key+'|'+v)+'"] img.ok'); const cover=img?img.getAttribute('src').replace(/\?default=false$/,''):'';
-  const now=Date.now(); const b=normBook({id:uid(),lib:curLib,type:it.type||'Manga',format:'papier',series:it.name,volume:v,isbn:o.isbn||'',cover,status:'envie',release:o.fr||'',addedAt:now,updatedAt:now});
+  const now=Date.now(); const b=normBook({id:uid(),lib:curLib,type:it.type||'Manga',format:'papier',series:it.name,volume:v,isbn:isbnValid(cleanIsbn(o.isbn))?isbn13(cleanIsbn(o.isbn)):'',cover,status:'envie',release:relDateOk(o.fr)?o.fr:'',addedAt:now,updatedAt:now});
   DB.books.push(b); commit(); haptic(8); renderRelAll();
   if(!cover&&b.isbn) (async()=>{ for(const u of MBRel.covers(b.isbn)){ if(await probeImg(u)){ const x=getBook(b.id); if(x&&!x.cover&&!DB.tomb.b[x.id]){ x.cover=u.replace(/\?default=false$/,''); x.updatedAt=Date.now(); commit(); renderAll(); } return; } } })();
   toast('Tome '+v+' ajouté aux envies',{label:'Annuler',fn:()=>{ delBooks([getBook(b.id)]); renderRelAll(); }}); }
