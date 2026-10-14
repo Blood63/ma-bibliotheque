@@ -380,6 +380,45 @@ main.switching .page.on{opacity:0;transform:translate3d(0,6px,0)}
 .rpchips::-webkit-scrollbar{display:none}
 .rpchips button{flex:none;border:1px solid var(--line2);background:rgba(6,11,29,.45);color:var(--txt2);border-radius:99px;padding:8px 13px;font-size:13.5px;transition:background .2s,border-color .2s}
 .rpchips button:active{background:rgba(217,180,90,.18);border-color:var(--gold)}
+/* ---------- Prochaines sorties ---------- */
+.segtab{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:16px;background:rgba(6,11,29,.55);border:1px solid var(--line);margin:6px 0 14px}
+.segtab button{border:0;background:none;color:var(--mut);padding:10px 6px;border-radius:12px;font-weight:650;font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .25s,color .25s,box-shadow .25s}
+.segtab button.on{background:linear-gradient(180deg,rgba(217,180,90,.22),rgba(217,180,90,.08));color:var(--gold2);box-shadow:inset 0 0 0 1px rgba(217,180,90,.45)}
+.bdg{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--gold);color:#1d1606;font-size:11px;font-weight:800;display:inline-grid;place-items:center;line-height:1}
+.bdg:empty{display:none}
+.tdot{position:absolute;top:9px;left:calc(50% + 7px);width:8px;height:8px;border-radius:50%;background:var(--gold2);box-shadow:0 0 0 2px var(--bg),0 0 10px rgba(241,212,138,.8);pointer-events:none}
+.relhead{display:flex;align-items:center;gap:12px;justify-content:space-between}
+.relhead .btn{flex:none}
+.relsec{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);margin:18px 2px 8px;font-weight:700;display:flex;align-items:center;gap:8px}
+.relsec .bdg{font-size:10.5px}
+.rcard{padding:14px 14px 10px}
+.rhd{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;margin-bottom:4px}
+.rhd .pill{flex:none;max-width:132px;font-size:12px;padding:6px 26px 6px 10px}
+.rname{font-family:var(--serif);font-size:18px;font-weight:700;line-height:1.2}
+.rrow{display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px solid rgba(47,65,112,.5)}
+.rcv{position:relative;flex:none;width:46px;height:66px;border-radius:6px;overflow:hidden;background:linear-gradient(160deg,#1c2b5c,#0f1836);border:1px solid var(--line2);display:grid;place-items:center;color:var(--gold2);font-family:var(--serif);font-weight:700;font-size:13px}
+.rcv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}
+.rcv img.ok{opacity:1}
+.rinfo{flex:1;min-width:0}
+.rinfo b{font-size:15px}
+.rdate{font-size:13.5px;color:var(--txt2);margin-top:1px}
+.rrel{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;font-size:12px;color:var(--mut)}
+.rtag{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:99px;white-space:nowrap}
+.rtag.out{background:var(--gold);color:#1d1606}
+.rtag.wk{background:rgba(217,180,90,.16);color:var(--gold2);border:1px solid rgba(217,180,90,.5)}
+.rrow.out .rcv{box-shadow:0 0 0 2px var(--gold),0 0 16px rgba(217,180,90,.35)}
+.rw{flex:none;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line2);background:rgba(6,11,29,.5);color:var(--txt2);border-radius:12px;padding:8px 10px;font-size:13px;font-weight:600;transition:transform .15s,background .2s}
+.rw:active{transform:scale(.94)}
+.rw .i{width:15px;height:15px}
+.rw.on{color:var(--gold2);border-color:rgba(217,180,90,.5);opacity:.9}
+.rtba{font-size:13.5px;color:var(--txt2);padding:9px 0 2px;border-top:1px solid rgba(47,65,112,.5)}
+.rsrc{margin-top:8px;font-size:12px}
+.rsrc a{color:var(--gold2)}
+.relhome{cursor:pointer;border-color:rgba(217,180,90,.45)!important;background:linear-gradient(180deg,rgba(217,180,90,.10),rgba(15,24,54,.85))!important}
+.relhome .eyebrow{margin-bottom:6px}
+.relhome .rl{font-size:14.5px;margin:3px 0}
+details.rdone summary{cursor:pointer;color:var(--mut);font-size:13px;margin:16px 2px 8px;list-style:none}
+details.rdone summary::-webkit-details-marker{display:none} details.rdone .car{display:inline-block;transition:transform .2s} details.rdone[open] .car{transform:rotate(90deg)}
 /* Sélecteur année + grille de 12 mois (commun : « Lu quand ? », formulaire, fiche) */
 .ymp{touch-action:pan-y;user-select:none;-webkit-user-select:none}
 #rpGrid{margin-top:14px}
@@ -524,10 +563,14 @@ body.selecting .fmt{display:none}
 
 <!-- SERIES -->
 <section class="page" id="p-series">
+  <div class="segtab" id="serSeg" role="tablist"><button type="button" role="tab" data-sv="ser" class="on">Mes séries</button><button type="button" role="tab" data-sv="rel">Prochaines sorties <span class="bdg" id="relBdg"></span></button></div>
+  <div id="relWrap" class="hidden"><div id="relList"></div></div>
+  <div id="serWrap">
   <div class="srow" style="margin:8px 0 12px"><div class="search"><svg class="i"><use href="#i-search"/></svg><input id="qs" type="search" placeholder="Rechercher une série" autocomplete="off"></div></div>
   <div class="chips" style="margin-top:0;margin-bottom:14px"><select class="pill" id="fsType" aria-label="Type"></select><select class="pill" id="fsState" aria-label="État"><option value="">Toutes</option><option value="cours">À lire</option><option value="fini">Tout lu</option><option value="miss">Tomes manquants</option></select></div>
   <div id="serList"></div>
   <p class="small mut" style="text-align:center">Touche un tome pour le marquer lu / non lu. Plein or : lu ce mois-ci ou daté · or clair : Lu (avant) · pointillés : manquant ou envie.</p>
+  </div>
 </section>
 
 <!-- STATS -->
@@ -739,11 +782,12 @@ body.selecting .fmt{display:none}
   <input id="nameIn" maxlength="30" placeholder="ex. un prénom" enterkeyhint="done"><div class="row" style="margin-top:14px"><button type="button" class="btn sec" id="nameCancel" style="flex:1">Annuler</button><button class="btn" type="submit" style="flex:1">Enregistrer</button></div></form></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <datalist id="dlSeries"></datalist><datalist id="dlAuthors"></datalist><datalist id="dlGenres"></datalist>
+<script src="releases.js"></script>
 <script>
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '3.1';
+const APP_VERSION = '3.2';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -861,6 +905,7 @@ function migrate(db){
   if(!Array.isArray(db.books)) db.books=[];
   if(!db.series||typeof db.series!=='object') db.series={};
   if(!db.serAlias||typeof db.serAlias!=='object'||Array.isArray(db.serAlias)) db.serAlias={};
+  if(!db.serStatus||typeof db.serStatus!=='object'||Array.isArray(db.serStatus)) db.serStatus={};
   db.tomb=Object.assign({b:{}},db.tomb||{});
   db.books=db.books.filter(b=>b&&typeof b==='object').map(normBook);
   for(const [k,s] of Object.entries(db.series)){ if(!s||typeof s!=='object'){ delete db.series[k]; continue; } if(typeof s.updatedAt!=='number') s.updatedAt=1; }
@@ -894,7 +939,9 @@ function mergeDB(L,R){
     if(a.goals||b.goals){ const ga=a.goals&&a.goals.updatedAt||0, gb=b.goals&&b.goals.updatedAt||0; o.goals=normGoals(gb>=ga?(b.goals||a.goals):a.goals); } libs[id]=o; }
   const serAlias={}; const at=x=>x&&typeof x.at==='number'?x.at:0; const LA=L.serAlias||{}, RA=R.serAlias||{};
   for(const k of new Set([...Object.keys(LA),...Object.keys(RA)])){ const a=LA[k], b=RA[k]; const v=!a?b:!b?a:(at(b)>=at(a)?b:a); if(v&&typeof v==='object') serAlias[k]={to:typeof v.to==='string'?v.to:null,at:at(v)}; }
-  return Object.assign({},R,L,{version:Math.max(L.version||1,R.version||1,DATA_VERSION),books,series,goals,libs,tomb,serAlias});
+  const serStatus={}; const LS=L.serStatus||{}, RS=R.serStatus||{}; // statut de série choisi par l'utilisateur (en cours / terminée) : le plus récent gagne
+  for(const k of new Set([...Object.keys(LS),...Object.keys(RS)])){ const a=LS[k], b=RS[k]; const v=!a?b:!b?a:(at(b)>=at(a)?b:a); if(v&&typeof v==='object') serStatus[k]={s:v.s==='encours'||v.s==='terminee'?v.s:null,at:at(v)}; }
+  return Object.assign({},R,L,{version:Math.max(L.version||1,R.version||1,DATA_VERSION),books,series,goals,libs,tomb,serAlias,serStatus});
 }
 
 /* ---------- Store ---------- */
@@ -1242,7 +1289,7 @@ async function syncNow(opts={}){
     if(c.gistId){ try{ gist=await gh(c.token,'/gists/'+encodeURIComponent(c.gistId)); }catch(e){ if(e.status!==404) throw e; c.gistId=''; } }
     if(!gist){ const g=await findGist(c.token); if(g) gist=await gh(c.token,'/gists/'+encodeURIComponent(g.id)); }
     let remote=null;
-    if(gist){ const txt=await readGistFile(gist);
+    if(gist){ await relFromGist(gist); const txt=await readGistFile(gist);
       if(txt){ try{ remote=JSON.parse(txt); }catch(e){ throw new SyncError('Le fichier du gist est illisible (JSON invalide).'); }
         if(!validImport(remote)) throw new SyncError('Le fichier du gist n’a pas le format attendu.'); migrate(remote); } }
     const snapshot=JSON.parse(JSON.stringify(DB));
@@ -1252,7 +1299,7 @@ async function syncNow(opts={}){
     else { const g=await gh(c.token,'/gists',{method:'POST',body:Object.assign({description:'Ma bibliothèque – données (gist secret, ne pas rendre public)',public:false},body)}); c.gistId=g.id; }
     DB=mergeDB(merged,DB); // conserve une éventuelle saisie faite pendant la synchro
     save(); const c2=syncCfg(); c2.gistId=c.gistId; c2.lastSync=Date.now(); saveSyncCfg(c2);
-    renderAll(); setSyncStatus('Synchronisé ✔','green'); if(!opts.silent) toast('Synchronisation réussie');
+    renderAll(); setSyncStatus('Synchronisé ✔','green'); setTimeout(relAutoCheck,1500); if(!opts.silent) toast('Synchronisation réussie');
     return true;
   }catch(e){
     const m=e instanceof SyncError? e.message : 'Erreur inattendue pendant la synchronisation : '+e.message;
@@ -1437,6 +1484,7 @@ function renderHome(){
     <div class="prev">Mois dernier : ${prev}</div></div>${gm?ringHTML(c.total,gm,118,'objectif'):''}</div>
     <div class="goalmsg">${gm?(left>0?`✦ Encore <b>${left}</b>&nbsp;lecture${left>1?'s':''} pour atteindre ton objectif de ${gm}`:`✨ Objectif du mois atteint${left<0?' (+'+(-left)+')':''} — bravo !`):'Aucun objectif mensuel : règle-le dans ⚙️ Réglages.'}</div>
     <div class="ybar"><div class="t"><span>Objectif ${y}${gy?` · <span style="color:${diff>=0?'var(--gold2)':'var(--warn)'}">${diff>0?'en avance de '+diff:diff<0?'en retard de '+(-diff):'pile dans le rythme'}</span>`:''}</span><span>Total ${y} : <b>${yr}</b>${gy?' / '+gy:''}</span></div><div class="bar"><i data-p="${gy?Math.min(1,yr/gy).toFixed(3):0}"></i></div></div></div>`;
+  h+=relHomeCard();
   h+=`<div class="kstrip st" style="--i:1">${[['possédés',own.length,''],['lus',rd,''],['% lus',own.length?Math.round(ownR/own.length*100):0,' %'],['envies',LB().length-own.length,'']].map(([k,v,s])=>`<div class="k"><b data-count="${v}" data-suf="${s}">${v}${s}</b><small>${k}</small></div>`).join('')}</div>`;
   if(!LB().length){
     h+=`<div class="empty st" style="--i:2;margin-top:18px">${SVG_EMPTY}<h3>Ta bibliothèque t’attend</h3><p>Scanne le code-barres d’un livre, tape son ISBN, ou ajoute toute une série de mangas d’un coup.</p>
@@ -1548,6 +1596,9 @@ function closeMergeDlg(fromPop){ if(!$('mergeDlg').classList.contains('on')) ret
 /* ---------- Séries ---------- */
 function compactRange(a){ const out=[]; let s=null,p=null; for(const v of a){ if(s===null){s=p=v;continue;} if(v===p+1){p=v;continue;} out.push(s===p?s:s+'-'+p); s=p=v; } if(s!==null) out.push(s===p?s:s+'-'+p); return out.join(', '); }
 function renderSeries(){
+  document.querySelectorAll('#serSeg [data-sv]').forEach(b=>{ const on=b.dataset.sv===serView; b.classList.toggle('on',on); b.setAttribute('aria-selected',on); });
+  $('serWrap').classList.toggle('hidden',serView==='rel'); $('relWrap').classList.toggle('hidden',serView!=='rel');
+  if(serView==='rel'){ renderRel(); return; }
   const q=norm($('qs').value), t=$('fsType').value, st=$('fsState').value;
   let gs=seriesGroups().filter(g=>(!q||norm(g.name+' '+g.author).includes(q))&&(!t||g.type===t));
   if(st==='cours') gs=gs.filter(g=>g.read<g.den); if(st==='fini') gs=gs.filter(g=>g.read>=g.den); if(st==='miss') gs=gs.filter(g=>g.missing.length);
@@ -1674,7 +1725,7 @@ function renderDetail(){
   $('dCover').className='dcov cv'+(safeImg(b.cover)?' loading':'')+($('dCover').classList.contains('hide')?' hide':''); hiRes($('dCover').querySelector('img'));
   $('dBg').innerHTML=safeImg(b.cover)?`<img src="${esc(safeImg(b.cover))}" alt="" referrerpolicy="no-referrer">`:phHTML(b);
   $('dTitle').textContent=bookLabel(b); $('dAuthor').textContent=b.author||'';
-  $('dChips').innerHTML=`<span class="tag ${b.type}">${b.type}</span> ${b.status==='envie'?'<span class="tag envie">Liste d’envies</span>':''}<div>${[b.series?esc(b.series)+(b.volume!=null?' · Tome '+f(b.volume,1):''):null,b.genre?esc(b.genre):null].filter(Boolean).map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
+  $('dChips').innerHTML=`<span class="tag ${b.type}">${b.type}</span> ${b.status==='envie'?'<span class="tag envie">Liste d’envies</span>':''}<div>${[b.series?esc(b.series)+(b.volume!=null?' · Tome '+f(b.volume,1):''):null,b.genre?esc(b.genre):null,b.status==='envie'&&b.release?'Sortie '+esc(relDateTxt({fr:b.release,fp:b.release.length===10?'d':b.release.length===7?'m':'y'})):null].filter(Boolean).map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
   const r=$('dRead'); r.className='btn'+(b.read?' isread':''); r.innerHTML=b.read?(s==='date'?ico('check')+'Lu en '+moisAn(b.dateRead):ico('check')+'Lu (avant)'):ico('check')+'Marquer comme lu (ce mois-ci)';
   ympShow($('dYmp'),b.read?b.dateRead||'':'',{key:b.id}); $('dBefore').classList.toggle('on',s==='before');
   $('dReadHint').innerHTML=s==='date'?`Compté dans les lectures ${deMois(b.dateRead)} · <a href="#" id="dUnread">marquer non lu</a>`:s==='before'?'Lu (avant) : compte dans le total et le % de lus, pas dans les stats mensuelles ni l’objectif · <a href="#" id="dUnread">marquer non lu</a>':'Choisis le mois de lecture, ou « Lu (avant) » pour une lecture ancienne.';
@@ -1771,8 +1822,79 @@ function show(p,o={}){
 function renderBackup(){ const bk=readBackup(); $('bkInfo').textContent=bk?('Sauvegarde automatique : '+fmtDT(bk.at)+' · '+bk.db.books.length+' livre(s) · avant '+bk.reason+'.'):''; $('btnRestore').classList.toggle('hidden',!bk);
   let n=0; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith(KEY)) n+=(localStorage.getItem(k)||'').length; } }catch(e){}
   const ph=DB.books.filter(b=>String(b.cover).startsWith('data:')).length; $('storeInfo').textContent='Stockage utilisé sur cet appareil : '+f(n*2/1048576,1)+' Mo'+(ph?' (dont '+ph+' photo'+(ph>1?'s':'')+' de couverture)':'')+' · limite habituelle ≈ 5 Mo.'; }
+/* ---------- Prochaines sorties (module partagé releases.js : Wikipédia + BnF) ---------- */
+const REL_KEY=KEY+'.rel'; let REL=null, relBusy=false, relProg='', serView='ser', relMemo=null;
+function loadRel(){ try{ const o=JSON.parse(localStorage.getItem(REL_KEY)||'null'); REL=o&&o.series&&typeof o.series==='object'?o:null; }catch(e){ REL=null; } relMemo=null; }
+function saveRel(){ relMemo=null; try{ if(REL) localStorage.setItem(REL_KEY,JSON.stringify(REL)); }catch(e){} }
+function relView(lib=curLib){ const k=dataRev+'|'+(REL?REL.at:0)+'|'+lib+'|'+todayISO()+'|'+DB.books.length; if(relMemo&&relMemo.k===k) return relMemo.v; const v=MBRel.viewFor(DB,REL,lib,todayISO()); relMemo={k,v}; return v; }
+async function relFromGist(gist){ try{ const f=gist&&gist.files&&gist.files[MBRel.FILE]; if(!f) return; let t=f.content; if(f.truncated&&f.raw_url) t=await (await fetch(f.raw_url,{cache:'no-store'})).text();
+  const o=JSON.parse(t); if(!o||!o.series||typeof o.series!=='object') return; REL=MBRel.mergeReleases(REL,o); saveRel(); }catch(e){} }
+const relCtx={ json:async u=>{ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),15000); try{ const r=await fetch(u,{signal:ctl.signal}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); } finally{ clearTimeout(t); } },
+  text:async u=>{ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),15000); try{ const r=await fetch(u,{signal:ctl.signal}); return r.ok?await r.text():null; }catch(e){ return null; } finally{ clearTimeout(t); } } };
+async function refreshReleases(o={}){ if(relBusy) return false; if(navigator.onLine===false){ if(!o.auto) toast('Hors ligne : l’actualisation demande internet'); return false; }
+  const want=MBRel.wanted(DB); if(!want.length){ if(!o.auto) toast('Aucune série en cours à suivre'); return false; }
+  relBusy=true; relProg='0 / '+want.length; setUiPref('relTry',Date.now()); paintRelBusy();
+  try{ const res=await MBRel.refreshAll(want,relCtx,{prev:REL,by:'app',conc:3,onProgress:(d,n)=>{ relProg=d+' / '+n; paintRelBusy(); }});
+    if(res.failed===want.length){ if(!o.auto) toast('Sources injoignables (connexion ?)'); return false; }
+    REL=MBRel.mergeReleases(REL,res); REL.at=res.at; REL.by='app'; saveRel(); if(!o.auto) toast('Prochaines sorties à jour'+(res.failed?' ('+res.failed+' série'+(res.failed>1?'s':'')+' non vérifiée'+(res.failed>1?'s':'')+')':'')); return true;
+  }catch(e){ if(!o.auto) toast('Actualisation impossible'); return false; }
+  finally{ relBusy=false; relProg=''; renderRelAll(); } }
+// Mardi 6 h (Paris) : si l'action GitHub n'a rien apporté, l'application actualise d'elle-même à la première ouverture (une tentative toutes les 6 h au plus)
+function relAutoCheck(){ try{ if(relBusy||navigator.onLine===false||document.visibilityState==='hidden') return; const now=Date.now(), gate=MBRel.lastTuesday6(now);
+  if(REL&&+REL.at>=gate) return; if(+uiPref('relTry',0)>Math.max(gate,now-6*3600e3)) return; if(!MBRel.wanted(DB).length) return; refreshReleases({auto:true}); }catch(e){} }
+function setSerStatus(key,s){ DB.serStatus=DB.serStatus||{}; DB.serStatus[key]={s:s==='encours'||s==='terminee'?s:null,at:Date.now()}; commit(); haptic(5);
+  toast(s==='terminee'?'Série marquée terminée : plus suivie':s==='encours'?'Série marquée en cours':'Statut automatique'); renderRelAll(); }
+function relDateTxt(o){ if(!o.fr) return o.out?'Déjà paru':'Date non annoncée'; if(o.fp==='d'){ const d=new Date(o.fr+'T12:00:00'); return capF(d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',year:'numeric'})); }
+  if(o.fp==='m') return capF(MOIS_L[+o.fr.slice(5,7)-1])+' '+o.fr.slice(0,4); return o.fr; }
+function relRelTxt(o){ if(o.fp!=='d') return ''; const n=Math.round((new Date(o.fr+'T12:00:00')-new Date(todayISO()+'T12:00:00'))/864e5);
+  if(n===0) return 'aujourd’hui'; if(n===1) return 'demain'; if(n===-1) return 'hier'; const a=Math.abs(n), u=a<14?a+' j':a<62?Math.round(a/7)+' sem.':Math.round(a/30.44)+' mois'; return n>0?'dans '+u:'il y a '+u; }
+function relCover(key,o){ const c=MBRel.covers(o.isbn); return `<div class="rcv" data-cov="${esc(key+'|'+o.v)}">${c.length?`<img alt="" loading="lazy" referrerpolicy="no-referrer" data-i="0" data-c="${esc(c.join(' '))}" src="${esc(c[0])}">`:''}<span>T${o.v}</span></div>`; }
+function relCard(it){ const rows=it.next.map(o=>`<div class="rrow ${o.st}${o.wk?' wk':''}" data-v="${o.v}">${relCover(it.key,o)}<div class="rinfo"><b>Tome ${o.v}</b><div class="rdate">${esc(relDateTxt(o))}</div>
+    <div class="rrel">${o.st==='out'?'<span class="rtag out">Déjà sorti</span>':''}${o.wk&&o.st!=='out'?'<span class="rtag wk">Cette semaine</span>':''}<span>${esc(relRelTxt(o))}</span></div></div>
+    ${o.wish?`<button type="button" class="rw on" disabled>${ico('check')}Envies</button>`:`<button type="button" class="rw" data-rw="${o.v}" aria-label="Ajouter le tome ${o.v} aux envies">${ico('plus')}Envies</button>`}</div>`).join('');
+  const nx=it.last+1, tba=!it.next.length?`<div class="rtba">Tome ${nx} : ${it.jp?'pas encore annoncé en France · paru au Japon '+esc(relDateTxt({fr:it.jp,fp:it.jp.length===10?'d':it.jp.length===7?'m':'y'}).toLowerCase()):it.checked?'date pas encore annoncée':'pas encore vérifié'}</div>`:'';
+  const au=it.auto==='terminee'?'terminée':it.auto==='encours'?'en cours':'';
+  const sel=`<select class="pill rst" data-rs="${esc(it.key)}" aria-label="Statut de la série ${esc(it.name)}"><option value=""${!it.user?' selected':''}>Auto${au?' · '+au:''}</option><option value="encours"${it.user==='encours'?' selected':''}>En cours</option><option value="terminee"${it.user==='terminee'?' selected':''}>Terminée</option></select>`;
+  const src=it.src.length?'Source : '+[...new Map(it.src.map(s=>[s.u,s])).values()].slice(0,3).map(s=>`<a href="${esc(s.u)}" target="_blank" rel="noopener noreferrer">${esc(s.n)} ↗</a>`).join(' · '):(it.checked?'Aucune source n’a d’information sur cette série.':'');
+  return `<div class="card rcard" data-rk="${esc(it.key)}"><div class="rhd"><div style="min-width:0"><div class="rname">${esc(it.name)}</div><div class="small mut">Tu as jusqu’au tome ${it.last}${it.nb?' · '+it.nb+' tome'+(it.nb>1?'s':'')+' en tout'+(it.auto==='terminee'?' (terminée)':''):''}</div></div>${sel}</div>${rows}${tba}${src?`<div class="rsrc mut">${src}</div>`:''}</div>`; }
+function renderRel(){ const el=$('relList'); if(!el) return; const items=relView(); const wk=[],out=[],soon=[],tba=[],done=[];
+  for(const it of items){ if(it.user==='terminee'||it.complete){ done.push(it); continue; } if(!it.next.length){ tba.push(it); continue; } if(it.next.some(o=>o.wk)) wk.push(it); else if(it.next[0].st==='out') out.push(it); else soon.push(it); }
+  const d0=it=>{ const o=it.next.find(x=>x.st!=='out')||it.next[0]; return (o.fr||'9999')+(o.fp==='d'?'':'-99'); };
+  soon.sort((a,b)=>d0(a).localeCompare(d0(b))); out.sort((a,b)=>(b.next[0].fr||'').localeCompare(a.next[0].fr||''));
+  const at=REL&&REL.at, by=REL&&REL.by;
+  let h=`<div class="card relhead"><div style="min-width:0"><b>Prochaines sorties</b><div class="small mut" id="relInfo">${relBusy?'Actualisation… <span id="relProg">'+esc(relProg)+'</span>':at?'Vérifié le '+esc(fmtDT(at))+(by==='action'?' (automatique du mardi)':''):'Pas encore vérifié'}</div>
+    <div class="small mut">Séries de « ${esc(libName())} » · chaque mardi matin · sources : Wikipédia, BnF</div></div><button type="button" class="btn sec sm" id="btnRelRefresh"${relBusy?' disabled':''}>${relBusy?'…':'Actualiser'}</button></div>`;
+  if(!items.length) h+=`<div class="empty"><h3>Aucune série à suivre</h3><p>Ajoute des tomes d’une série (avec leur numéro) dans « ${esc(libName())} » : leurs prochaines sorties apparaîtront ici.</p></div>`;
+  const sec=(t,list,n)=>list.length?`<div class="relsec">${t}${n?` <span class="bdg">${n}</span>`:''}</div>`+list.map(relCard).join(''):'';
+  h+=sec('Cette semaine',wk,wk.length)+sec('Déjà sorti · pas encore chez toi',out,out.length)+sec('À venir',soon)+sec('Pas encore de date',tba);
+  if(done.length) h+=`<details class="rdone"${relDoneOpen()?' open':''}><summary><span class="car" aria-hidden="true">▸</span> ${done.length} série${done.length>1?'s':''} terminée${done.length>1?'s':''} ou complète${done.length>1?'s':''} (non suivie${done.length>1?'s':''})</summary>${done.map(relCard).join('')}</details>`;
+  if(items.length&&!at&&!relBusy) h+=`<p class="small mut" style="text-align:center">Touche « Actualiser » pour une première vérification (quelques secondes).</p>`;
+  el.innerHTML=h; }
+function paintRelBusy(){ const p=$('relProg'); if(p){ p.textContent=relProg; return; } if(curPage==='series'&&serView==='rel') renderRel(); }
+function relHomeCard(){ const items=relView(); const wk=[]; let out=0; for(const it of items){ if(it.user==='terminee'||it.complete) continue; for(const o of it.next){ if(o.wk) wk.push([it,o]); else if(o.st==='out') out++; } }
+  if(!wk.length&&!out) return ''; wk.sort((a,b)=>(a[1].fr||'').localeCompare(b[1].fr||''));
+  return `<div class="card relhome st" style="--i:1;margin-top:14px" id="relHome" role="button" tabindex="0" aria-label="Voir les prochaines sorties"><div class="eyebrow">${wk.length?'Sorties de la semaine':'Prochaines sorties'}</div>
+    ${wk.slice(0,3).map(([it,o])=>`<div class="rl"><b>${esc(it.name)}</b> · T${o.v} — ${esc(relDateTxt(o))}${o.st==='out'?' · <span style="color:var(--gold2)">sorti</span>':''}</div>`).join('')}${wk.length>3?`<div class="small mut">+ ${wk.length-3} autre${wk.length-3>1?'s':''}</div>`:''}
+    ${out?`<div class="small" style="color:var(--gold2);margin-top:4px">${out} tome${out>1?'s':''} déjà sorti${out>1?'s':''} pas encore chez toi →</div>`:''}</div>`; }
+function relBadges(){ let n=0; try{ n=MBRel.weekCount(relView().filter(it=>it.user!=='terminee'&&!it.complete)); }catch(e){} const b=$('relBdg'); if(b) b.textContent=n?String(n):'';
+  const tab=document.querySelector('#tabs .tab[data-p="series"]'); if(tab){ let d=tab.querySelector('.tdot'); if(n&&!d){ d=document.createElement('i'); d.className='tdot'; tab.appendChild(d); } if(!n&&d) d.remove(); tab.setAttribute('aria-label','Séries'+(n?' · '+n+' sortie'+(n>1?'s':'')+' cette semaine':'')); } }
+function renderRelAll(){ relMemo=null; relBadges(); if(curPage==='series'&&serView==='rel') renderRel(); if(curPage==='home') renderHome(); }
+function openRelView(){ serView='rel'; setUiPref('serView','rel'); if(curPage==='series') renderSeries(); else show('series'); }
+function relDoneOpen(){ const d=document.querySelector('#relList details.rdone'); return !!(d&&d.open); }
+function relAddWish(key,v){ const it=relView().find(x=>x.key===key); const o=it&&it.next.find(n=>n.v===v); if(!o) return;
+  if(LB().some(b=>b.series&&serKey(b.series)===key&&+b.volume===v)){ toast('Déjà dans ta bibliothèque'); renderRelAll(); return; }
+  const img=document.querySelector('#relList [data-cov="'+CSS.escape(key+'|'+v)+'"] img.ok'); const cover=img?img.getAttribute('src').replace(/\?default=false$/,''):'';
+  const now=Date.now(); const b=normBook({id:uid(),lib:curLib,type:it.type||'Manga',format:'papier',series:it.name,volume:v,isbn:o.isbn||'',cover,status:'envie',release:o.fr||'',addedAt:now,updatedAt:now});
+  DB.books.push(b); commit(); haptic(8); renderRelAll();
+  if(!cover&&b.isbn) (async()=>{ for(const u of MBRel.covers(b.isbn)){ if(await probeImg(u)){ const x=getBook(b.id); if(x&&!x.cover&&!DB.tomb.b[x.id]){ x.cover=u.replace(/\?default=false$/,''); x.updatedAt=Date.now(); commit(); renderAll(); } return; } } })();
+  toast('Tome '+v+' ajouté aux envies',{label:'Annuler',fn:()=>{ delBooks([getBook(b.id)]); renderRelAll(); }}); }
+function relClick(e){ const rw=e.target.closest('[data-rw]'); if(rw){ const c=rw.closest('[data-rk]'); relAddWish(c.dataset.rk,+rw.dataset.rw); return; }
+  if(e.target.closest('#btnRelRefresh')){ refreshReleases(); return; } }
+function relImg(e){ const im=e.target; if(!(im instanceof HTMLImageElement)||!im.closest('.rcv')) return; const bad=e.type==='error'||im.naturalWidth<10;
+  if(!bad){ im.classList.add('ok'); return; } const c=(im.dataset.c||'').split(' ').filter(Boolean), i=(+im.dataset.i||0)+1; if(i<c.length){ im.dataset.i=i; im.src=c[i]; } else im.remove(); }
+
 function renderPage(p){ if(p==='home') renderHome(); if(p==='lib') renderLib(); if(p==='series') renderSeries(); if(p==='stats') renderStats(); if(p==='data'){ renderSync(); renderLibCard(); renderGoals(); renderBackup(); } }
-function renderAll(){ clearTimeout(rerT); renderLibSw(); renderPage(curPage); if(curPage!=='home') renderHome(); fillDatalists(); if(detailOpen()) renderDetail(); if(curPage!=='lib'&&curPage!=='home') $('hEyebrow').textContent=eyebrowFor(curPage); }
+function renderAll(){ clearTimeout(rerT); relMemo=null; relBadges(); renderLibSw(); renderPage(curPage); if(curPage!=='home') renderHome(); fillDatalists(); if(detailOpen()) renderDetail(); if(curPage!=='lib'&&curPage!=='home') $('hEyebrow').textContent=eyebrowFor(curPage); }
 
 /* ---------- Bibliothèques : sélecteur & renommage ---------- */
 function libInitials(){ const i=LIB_IDS.map(l=>(libName(l).trim().match(/[\p{L}\p{N}]/u)||['?'])[0].toUpperCase()); return i[0]===i[1]?['1','2']:i; }
@@ -1871,6 +1993,13 @@ function init(){
   ['homeBody','libList'].forEach(id=>{ $(id).addEventListener('click',itemClick); $(id).addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')&&e.target.matches('[tabindex="0"]')){ e.preventDefault(); e.target.click(); } }); });
   $('stYearGoal').addEventListener('click',itemClick);
   $('serList').addEventListener('click',seriesClick);
+  loadRel(); serView=uiPref('serView','ser')==='rel'?'rel':'ser';
+  $('serSeg').addEventListener('click',e=>{ const b=e.target.closest('[data-sv]'); if(!b||b.dataset.sv===serView) return; serView=b.dataset.sv; setUiPref('serView',serView); haptic(4); renderSeries(); window.scrollTo(0,0); });
+  $('relList').addEventListener('click',relClick); $('relList').addEventListener('load',relImg,true); $('relList').addEventListener('error',relImg,true);
+  $('relList').addEventListener('change',e=>{ const s=e.target.closest('[data-rs]'); if(s) setSerStatus(s.dataset.rs,s.value); });
+  $('homeBody').addEventListener('click',e=>{ if(e.target.closest('#relHome')){ e.stopPropagation(); openRelView(); } },true);
+  $('homeBody').addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')&&e.target.id==='relHome'){ e.preventDefault(); openRelView(); } });
+  setTimeout(relAutoCheck,6000); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') setTimeout(relAutoCheck,2500); });
   $('detail').addEventListener('click',detailClick);
   ympOn($('dYmp'),v=>{ const b=getBook(detailId); if(!b) return; if(b.read&&b.dateRead===v){ renderDetail(); return; } applyRead([b],v,()=>{ renderDetail(); renderSoon(300); }); });
   $('q').addEventListener('input',()=>{ libLimit=LIB_PAGE; renderLib(); }); $('qs').addEventListener('input',renderSeries);

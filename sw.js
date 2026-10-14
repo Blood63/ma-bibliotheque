@@ -1,6 +1,6 @@
-const CACHE = 'ma-bibliotheque-v7';
+const CACHE = 'ma-bibliotheque-v8';
 const COVERS = 'ma-bibliotheque-covers-v1';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const ASSETS = ['./', './index.html', './releases.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 // Images de couverture mises en cache pour l'affichage hors ligne (jamais les API, jamais api.github.com)
 const COVER_HOSTS = ['covers.openlibrary.org', 'images-na.ssl-images-amazon.com', 'books.google.com', 'books.googleusercontent.com', 'catalogue.bnf.fr'];
 // Police Playfair Display (Google Fonts) gardée en cache pour le mode hors ligne

@@ -1,0 +1,26 @@
+name: Prochaines sorties (mardi matin)
+# Mardi ~6 h 20, heure de Paris : 04:20 UTC (heure d'été) et 05:20 UTC (heure d'hiver) ; le script ne travaille qu'une fois, après 6 h à Paris.
+on:
+  schedule:
+    - cron: '20 4 * * 2'
+    - cron: '20 5 * * 2'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: prochaines-sorties
+  cancel-in-progress: false
+jobs:
+  releases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Actualiser les prochaines sorties (gist secret)
+        run: node .github/scripts/releases-job.js
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' }}
