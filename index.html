@@ -418,7 +418,8 @@ main.switching .page.on{opacity:0;transform:translate3d(0,6px,0)}
 .relhome .eyebrow{margin-bottom:6px}
 .relhome .rl{font-size:14.5px;margin:3px 0}
 details.rdone summary{cursor:pointer;color:var(--mut);font-size:13px;margin:16px 2px 8px;list-style:none}
-details.rdone summary::-webkit-details-marker{display:none} .rlz{color:var(--gold2,#e8c66a)} .rlz.out{font-weight:600} .relcal{display:flex;justify-content:center;margin:18px 0 6px} details.rdone .car{display:inline-block;transition:transform .2s} details.rdone[open] .car{transform:rotate(90deg)}
+details.rdone summary::-webkit-details-marker{display:none} .srl{display:block;font-size:13px;margin:6px 0 2px;color:var(--txt2)} a.srl.rel{text-decoration:none;color:var(--gold2)} a.srl.rel.out b{color:var(--gold)} .srl a{color:var(--gold2)} .rcard.flash{box-shadow:0 0 0 2px var(--gold);transition:box-shadow .3s}
+.libhead .wshare{margin-left:auto} .rlz{color:var(--gold2,#e8c66a)} .rlz.out{font-weight:600} .relcal{display:flex;justify-content:center;margin:18px 0 6px} details.rdone .car{display:inline-block;transition:transform .2s} details.rdone[open] .car{transform:rotate(90deg)}
 /* Sélecteur année + grille de 12 mois (commun : « Lu quand ? », formulaire, fiche) */
 .ymp{touch-action:pan-y;user-select:none;-webkit-user-select:none}
 #rpGrid{margin-top:14px}
@@ -557,7 +558,7 @@ body.selecting .fmt{display:none}
 
 <!-- BIBLIOTHEQUE -->
 <section class="page" id="p-lib">
-  <div class="libhead"><span id="libCount"></span><span class="small mut" id="libHint"></span></div>
+  <div class="libhead"><span id="libCount"></span><span class="small mut" id="libHint"></span><button type="button" class="btn ghost sm wshare hidden" id="btnWishShare">📋 Partager la liste</button></div>
   <div id="libList" class="libgrid"></div>
 </section>
 
@@ -787,7 +788,7 @@ body.selecting .fmt{display:none}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '3.3';
+const APP_VERSION = '3.4';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -1518,6 +1519,12 @@ function libFiltered(){
 const LIB_PAGE=60; let libLimit=LIB_PAGE;
 function relShort(r){ if(!r) return ''; const today=todayISO(); if(r.length===10){ const d=new Date(r+'T12:00:00'); return (r>today?'Sort le ':'Sorti le ')+d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:r.slice(0,4)===today.slice(0,4)?undefined:'numeric'}); }
   if(r.length===7) return (r>today.slice(0,7)?'Sort en ':'Sorti en ')+MOIS_L[+r.slice(5,7)-1]+' '+r.slice(0,4); return (r>today.slice(0,4)?'Sort en ':'Sorti en ')+r; }
+function wishText(l){ const lines=l.filter(b=>b.status==='envie').map(b=>{ const t=b.series?b.series+(b.volume!=null?' – tome '+f(b.volume,1):''):bookLabel(b)+(b.author?' – '+b.author:'');
+    const x=[b.format==='kindle'?'Kindle':'',b.release?relShort(b.release).toLowerCase():'',b.isbn?'ISBN '+b.isbn:''].filter(Boolean); return '• '+t+(x.length?' ('+x.join(', ')+')':''); });
+  return 'Ma liste d’envies – '+libName()+' ('+lines.length+')\n'+lines.join('\n'); }
+async function wishShare(){ const txt=wishText(libFiltered());
+  if(matchMedia('(pointer:coarse)').matches&&navigator.share){ try{ await navigator.share({title:'Ma liste d’envies',text:txt}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  try{ await navigator.clipboard.writeText(txt); toast('Liste copiée : colle-la où tu veux'); }catch(e){ download('liste-envies.txt',txt,'text/plain;charset=utf-8'); } }
 function libTile(b,i){
   const chips=[b.series?esc(b.series)+(b.volume!=null?' · T'+f(b.volume,1):''):null,b.status==='envie'&&b.release?'<span class="rlz'+(b.release>todayISO()?'':' out')+'">'+esc(relShort(b.release))+'</span>':null,b.genre?esc(b.genre):null,b.read?readLabel(b):null,b.isbn?'ISBN '+esc(b.isbn):null].filter(Boolean);
   return `<div class="bk st${b.read?' read':''}${selIds.has(b.id)?' sel':''}" data-id="${esc(b.id)}" style="--i:${i}">${coverHTML(b)}
@@ -1529,7 +1536,7 @@ function renderLib(){
   $('fSeries').innerHTML='<option value="">Série</option><option value="__none">Hors série</option>'+groups.map(g=>`<option value="${esc(g.key)}">${esc(g.name)} (${g.books.length})</option>`).join('');
   $('fSeries').value=groups.some(g=>g.key===sel)||sel==='__none'?sel:'';
   ['fType','fRead','fStatus','fSeries','fFormat'].forEach(id=>$(id).classList.toggle('set',!!$(id).value)); $('fSort').classList.toggle('set',$('fSort').value!=='added');
-  const l=libFiltered(); const rd=l.filter(b=>b.read).length;
+  const l=libFiltered(); const rd=l.filter(b=>b.read).length; $('btnWishShare').classList.toggle('hidden',!($('fStatus').value==='envie'&&l.length));
   $('libCount').textContent=l.length+' / '+LB().length+' · '+rd+' lu'+(rd>1?'s':'');
   $('libHint').textContent=document.body.classList.contains('selecting')?'Touche les couvertures à sélectionner':'';
   const box=$('libList'); box.className=libView==='list'?'liblist':'libgrid';
@@ -1597,6 +1604,14 @@ function closeMergeDlg(fromPop){ if(!$('mergeDlg').classList.contains('on')) ret
 
 /* ---------- Séries ---------- */
 function compactRange(a){ const out=[]; let s=null,p=null; for(const v of a){ if(s===null){s=p=v;continue;} if(v===p+1){p=v;continue;} out.push(s===p?s:s+'-'+p); s=p=v; } if(s!==null) out.push(s===p?s:s+'-'+p); return out.join(', '); }
+function serRelLine(g,it){ if(!it) return ''; let h='';
+  if(!g.total&&it.nb&&it.auto==='terminee'&&it.nb>=it.last) h+=`<div class="srl"><a href="#" data-sact="usetotal" data-n="${it.nb}">Série terminée en ${it.nb} tomes : l’indiquer comme total</a></div>`;
+  if(it.user!=='terminee'&&!it.complete){ const o=it.next.find(x=>!x.wish); let t='';
+    if(o) t=o.st==='out'?`<b>Tome ${o.v} déjà sorti</b>${o.fr?' · '+esc(relDateTxt(o).toLowerCase()):''}`:o.st==='soon'?`Prochain : tome ${o.v} · ${esc(relDateTxt(o).toLowerCase())}`:`Tome ${o.v} : date pas encore annoncée`;
+    else if(it.next.length) t='Tomes à venir déjà dans tes envies';
+    else if(it.checked) t=`Tome ${it.last+1} : ${it.jp?'paru au Japon, pas encore annoncé en France':'date pas encore annoncée'}`;
+    if(t) h+=`<a href="#" class="srl rel${o&&o.st==='out'?' out':''}" data-sact="rel">📅 ${t} ›</a>`; }
+  return h; }
 function renderSeries(){
   document.querySelectorAll('#serSeg [data-sv]').forEach(b=>{ const on=b.dataset.sv===serView; b.classList.toggle('on',on); b.setAttribute('aria-selected',on); });
   $('serWrap').classList.toggle('hidden',serView==='rel'); $('relWrap').classList.toggle('hidden',serView!=='rel');
@@ -1604,7 +1619,7 @@ function renderSeries(){
   const q=norm($('qs').value), t=$('fsType').value, st=$('fsState').value;
   let gs=seriesGroups().filter(g=>(!q||norm(g.name+' '+g.author).includes(q))&&(!t||g.type===t));
   if(st==='cours') gs=gs.filter(g=>g.read<g.den); if(st==='fini') gs=gs.filter(g=>g.read>=g.den); if(st==='miss') gs=gs.filter(g=>g.missing.length);
-  const prev=snapRings($('serList')); const sug=q||t||st?[]:seriesSuggestions(gs);
+  const prev=snapRings($('serList')); const sug=q||t||st?[]:seriesSuggestions(gs); let relM={}; try{ relM=Object.fromEntries(relView().map(it=>[it.key,it])); }catch(e){}
   $('serList').innerHTML=sug.map(s=>`<div class="card sugg st" data-pk="${esc(s.pk)}" data-src="${esc(s.small.key)}" data-dst="${esc(s.big.key)}"><div class="small" style="color:var(--gold2);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px">Même série ?</div>
       <div style="margin:4px 0 10px">« <b>${esc(s.small.name)}</b> » (${s.small.books.length}) et « <b>${esc(s.big.name)}</b> » (${s.big.books.length})</div>
       <div class="row" style="gap:8px"><button class="btn sm" data-sug="yes">Fusionner sous « ${esc(s.big.name)} »</button><button class="btn ghost sm" data-sug="no">Non</button></div></div>`).join('')+(gs.length? gs.map((g,gi)=>{ const p=g.den?g.read/g.den:0;
@@ -1617,6 +1632,7 @@ function renderSeries(){
       <div class="prog"><span>${g.owned} possédé${g.owned>1?'s':''}${g.wish?' · '+g.wish+' envie'+(g.wish>1?'s':''):''}${g.total?' · '+g.total+' tomes parus':''}</span><b>${g.read}/${g.den} lus</b></div>
       <div class="bar"><i data-p="${p.toFixed(3)}"></i></div>
       <div class="miss-t">${g.missing.length?`<span class="orange">Manquants : ${esc(compactRange(g.missing))}</span>`:'<span class="mut">Aucun tome manquant'+(g.total?'':' (indique le nombre total de tomes pour vérifier)')+'</span>'}</div>
+      ${serRelLine(g,relM[g.key])}
       ${g.variants.length>1?`<div class="small mut vari">Écrit de ${g.variants.length} façons : ${g.variants.slice(0,4).map(n=>'« '+esc(n)+' »').join(', ')} · <a href="#" data-sact="unify">uniformiser</a></div>`:''}
       <div class="vols">${items}</div>
       <div class="sacts"><button class="btn sec sm" data-sact="addvol">${ico('plus')}Tomes</button>${unread?'<button class="btn sec sm" data-sact="next">✓ Tome suivant lu</button><button class="btn sec sm" data-sact="allread">✓ Tout lu…</button>':''}<button class="btn ghost sm" data-sact="total">Nb total</button><button class="btn ghost sm" data-sact="list">Voir</button><button class="btn ghost sm" data-sact="rename">Renommer</button><button class="btn ghost sm" data-sact="merge">Fusionner…</button></div></div>`; }).join('')
@@ -1631,6 +1647,10 @@ function seriesClick(e){
   if(v){ const b=getBook(v.dataset.vol); if(!b) return; const pop=()=>{ renderAll(); const nb=$('serList').querySelector(`[data-vol="${CSS.escape(b.id)}"]`); if(nb&&!RM()) nb.classList.add('pop'); };
     if(b.read){ setRead(b,false); commit(); haptic(8); toast(bookLabel(b)+' : non lu'); pop(); } else openReadPick([b],pop); return; }
   const a=e.target.closest('[data-sact]'); if(!a) return; const act=a.dataset.sact;
+  if(act==='rel'||act==='usetotal') e.preventDefault();
+  if(act==='rel'){ openRelView(); setTimeout(()=>{ const c=document.querySelector('#relList [data-rk="'+CSS.escape(g.key)+'"]'); if(c){ c.scrollIntoView({block:'center',behavior:'smooth'}); c.classList.add('flash'); setTimeout(()=>c.classList.remove('flash'),1600); } },80); return; }
+  if(act==='usetotal'){ const n=+a.dataset.n, old=DB.series[g.key]; if(!Number.isInteger(n)||n<1) return; DB.series[g.key]={total:n,updatedAt:Date.now()}; commit(); renderAll(); haptic(6);
+    toast('Total : '+n+' tomes',{label:'Annuler',fn:()=>{ DB.series[g.key]=old?Object.assign({},old,{updatedAt:Date.now()}):{total:null,updatedAt:Date.now()}; commit(); renderAll(); }}); return; }
   if(act==='total'){ const r=prompt('Nombre total de tomes parus pour « '+g.name+' » (vide = inconnu)',g.total||''); if(r===null) return; const n=num(r);
     if(n!=null&&(isNaN(n)||n<1||n>2000||!Number.isInteger(n))){ alert('Nombre invalide'); return; }
     DB.series[g.key]={total:n,updatedAt:Date.now()}; commit(); renderAll(); }
@@ -2028,6 +2048,7 @@ function init(){
   ['fType','fRead','fStatus','fSeries','fSort','fFormat'].forEach(id=>$(id).addEventListener('change',()=>{ libLimit=LIB_PAGE; renderLib(); }));
   ['fsType','fsState'].forEach(id=>$(id).addEventListener('change',renderSeries));
   $('btnClearF').addEventListener('click',clearFilters);
+  $('btnWishShare').addEventListener('click',wishShare);
   $('btnView').addEventListener('click',()=>{ libView=libView==='grid'?'list':'grid'; setUiPref('view',libView); haptic(5); const l=$('libList'); renderLib(); if(!RM()){ l.classList.add('anim'); $('p-lib').classList.add('anim'); setTimeout(()=>$('p-lib').classList.remove('anim'),900); } });
   $('btnSelect').addEventListener('click',()=>setSelecting(!document.body.classList.contains('selecting')));
   $('selCancel').addEventListener('click',()=>setSelecting(false));
