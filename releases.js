@@ -10,12 +10,13 @@ const UA='MaBibliotheque/1.0 (https://github.com/Blood63/ma-bibliotheque; procha
 /* Clés de série : copie exacte de l'application (test d'égalité dans la suite de tests). */
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const BK=new Map();
-function baseKey(s){ s=String(s||''); let k=BK.get(s); if(k!==undefined) return k;
+function baseKey(s){ s=String(s||''); let k=BK.get(s); if(k!==undefined){ BK.delete(s); BK.set(s,k); return k; }
   let t=norm(s).replace(/×/g,' x ').replace(/&/g,' et ').replace(/[’'`´]/g,' ');
   t=t.replace(/\b(?:edition originale|ed\.? originale|nouvelle edition|edition francaise)\b/g,' ');
   t=t.replace(/[\s,.:;\-–—(]*\b(?:tome|t|vol|volume|n|no|numero)\.?\s*\d{1,4}\)?\s*$/,'');
   k=t.replace(/[^a-z0-9]+/g,''); if(!k) k=norm(s).replace(/\s+/g,' ');
-  if(BK.size>5000) BK.clear(); BK.set(s,k); return k; }
+  if(BK.size>=5000){ let n=BK.size-4000; for(const o of BK.keys()){ if(n--<=0) break; BK.delete(o); } }
+  BK.set(s,k); return k; }
 function serKey(db,s,lib){ let k=baseKey(s); const al=db&&db.serAlias; if(!al) return k;
   for(let i=0;i<6;i++){ const a=al[lib+'|'+k]; if(!a||!a.to) break; const n=baseKey(a.to); if(n===k) break; k=n; } return k; }
 const artKey=s=>baseKey(String(s||'').replace(/^\s*(?:les?|la|l['’]|the|un|une|des)\s*/i,''));
@@ -67,8 +68,18 @@ function parseInfobox(t){ for(const b of tplBlocks(t,'Infobox Animation et bande
 function titleKey(t){ return String(t||'').replace(/^liste des (?:chapitres|volumes|tomes|albums)\s+(?:de la |de l['’]|du |des |de |d['’])?/i,'').replace(/\s*\([^)]*\)\s*/g,' ').trim(); }
 const words=s=>norm(loose(s)).replace(/[^a-z0-9]+/g,' ').trim();
 
+/* --- Réessais réseau (partagé navigateur + tâche Node) ---
+   Erreurs temporaires seulement : réseau, HTTP 429/503. 3 essais max,
+   attente exponentielle (base 450 ms, plafond 4 s) + jitter ; un 404/autre HTTP ne sont jamais réessayés.
+   ctx.sleep / ctx.retryBase permettent aux tests de contrôler le temps. */
+function retryStatus(e){ if(!e) return 0; if(+e.status) return +e.status; const m=String(e.message||e).match(/(?:HTTP\s*|GitHub\s*)(\d{3})/); return m?+m[1]:0; }
+function isRetryable(e){ const st=retryStatus(e); if(st) return st===429||st===503; return true; }
+async function retryFetch(ctx,kind,url){ let last; for(let a=0;a<3;a++){ try{ return await ctx[kind](url); }catch(e){ last=e; if(a===2||!isRetryable(e)) throw e;
+  const base=ctx.retryBase!=null?+ctx.retryBase:450, wait=Math.min(4000,base*Math.pow(2,a))+Math.floor(Math.random()*150);
+  if(ctx.sleep) await ctx.sleep(wait); else await new Promise(z=>setTimeout(z,wait)); } } throw last; }
+
 /* --- Requêtes --- */
-async function wpQuery(ctx,params){ const q=new URLSearchParams(Object.assign({format:'json',formatversion:'2',origin:'*',maxlag:'5'},params)); const r=await ctx.json(WP_API+'?'+q.toString()); if(r&&r.error&&r.error.code!=='missingtitle') throw new Error('wp:'+r.error.code); return r; }
+async function wpQuery(ctx,params){ const q=new URLSearchParams(Object.assign({format:'json',formatversion:'2',origin:'*',maxlag:'5'},params)); const r=await retryFetch(ctx,'json',WP_API+'?'+q.toString()); if(r&&r.error&&r.error.code!=='missingtitle') throw new Error('wp:'+r.error.code); return r; }
 async function wpSearch(ctx,q,limit=15){ const r=await wpQuery(ctx,{action:'query',list:'search',srsearch:q,srlimit:String(limit),srprop:'size',srnamespace:'0'}); return ((r&&r.query&&r.query.search)||[]).map(x=>x.title); }
 async function wpContent(ctx,titles){ if(!titles.length) return {}; const r=await wpQuery(ctx,{action:'query',prop:'revisions',rvprop:'content',rvslots:'main',titles:titles.join('|'),redirects:'1'}); const o={};
   for(const p of ((r&&r.query&&r.query.pages)||[])){ const rv=p.revisions&&p.revisions[0]; const c=rv&&(rv.slots&&rv.slots.main?rv.slots.main.content:rv.content); if(c) o[p.title]=c; } return o; }
@@ -94,7 +105,7 @@ function parseBnf(xml,name){ const vols={}; for(const rec of String(xml||'').spl
   return vols; }
 async function fromBnf(ctx,name,year){ const w=words(name); if(!w) return null; const ys=[year-2,year-1,year].join(' ');
   const q=new URLSearchParams({version:'1.2',operation:'searchRetrieve',recordSchema:'unimarcXchange',maximumRecords:'50',query:'bib.title all "'+w.replace(/"/g,'')+'" and bib.date any "'+ys+'"'});
-  const x=await ctx.text(BNF_SRU+'?'+q.toString()); if(x==null) return null; return {vols:parseBnf(x,name)}; }
+  const x=await retryFetch(ctx,'text',BNF_SRU+'?'+q.toString()); if(x==null) return null; return {vols:parseBnf(x,name)}; }
 
 /* --- Séries à suivre (dans les deux bibliothèques) --- */
 function watchList(db){ const g=new Map(); for(const b of (db&&db.books)||[]){ if(!b||!b.series||!String(b.series).trim()) continue; const lib=LIBS.includes(b.lib)?b.lib:'l1'; const key=serKey(db,b.series,lib); const id=lib+'|'+key;
@@ -107,7 +118,8 @@ function watchList(db){ const g=new Map(); for(const b of (db&&db.books)||[]){ i
   return out.sort((a,b)=>a.name.localeCompare(b.name,'fr')); }
 function wanted(db){ const m=new Map(); for(const x of watchList(db)){ if(x.user==='terminee') continue; if(x.total&&x.last>=x.total&&x.user!=='encours') continue; const p=m.get(x.key); if(!p) m.set(x.key,{key:x.key,name:x.name,type:x.type,from:x.last}); else p.from=Math.min(p.from,x.last); } return [...m.values()]; }
 
-async function fetchSeries(item,ctx){ const now=ctx.now?ctx.now():Date.now(), year=new Date(now).getUTCFullYear(); const r={key:item.key,name:item.name,at:now,status:null,nb:null,vols:{},src:[]}; let ok=0, errs=0;
+async function fetchSeries(item,ctx){ const now=ctx.now?ctx.now():Date.now(), year=+parisToday(now).slice(0,4); // année civile de Paris, pas UTC (runners GitHub en UTC)
+  const r={key:item.key,name:item.name,at:now,status:null,nb:null,vols:{},src:[]}; let ok=0, errs=0;
   try{ const w=await fromWikipedia(ctx,item.name); ok++; if(w){ r.status=w.status; r.nb=w.nb; for(const k in w.vols) r.vols[k]=w.vols[k]; for(const p of w.pages) r.src.push({n:'Wikipédia',u:WP_PAGE+encodeURIComponent(p.replace(/ /g,'_'))}); } }catch(e){ errs++; }
   try{ const b=await fromBnf(ctx,item.name,year); if(b){ ok++; let any=false; for(const k in b.vols){ const o=r.vols[k]||(r.vols[k]={v:+k}); o.out=1; if(!o.isbn&&b.vols[k].isbn) o.isbn=b.vols[k].isbn; if(!o.fr&&b.vols[k].y){ o.fr=b.vols[k].y; o.fp='y'; } any=true; }
       if(any) r.src.push({n:'BnF',u:'https://catalogue.bnf.fr/rechercher.do?motRecherche='+encodeURIComponent(item.name)}); } else errs++; }catch(e){ errs++; }
@@ -154,5 +166,5 @@ function lastTuesday6(now){ const p=parisParts(now); const base=Date.UTC(p.y,p.m
 function parisToday(now){ const p=parisParts(now); return p.y+'-'+String(p.m).padStart(2,'0')+'-'+String(p.d).padStart(2,'0'); }
 
 return {VERSION,FILE,DATA_FILE,UA,LIBS,norm,baseKey,serKey,sameSeries,isbn13,isbn10,covers,wDate,tplBlocks,tplParams,parseTomes,parseInfobox,titleKey,parseBnf,bnfRecSeries,
-  fromWikipedia,fromBnf,watchList,wanted,fetchSeries,refreshAll,mergeReleases,cleanRel,viewFor,weekRange,weekCount,parisParts,parisToUTC,lastTuesday6,parisToday};
+  retryFetch,bkCacheSize:()=>BK.size,_bk:BK,fromWikipedia,fromBnf,watchList,wanted,fetchSeries,refreshAll,mergeReleases,cleanRel,viewFor,weekRange,weekCount,parisParts,parisToUTC,lastTuesday6,parisToday};
 });

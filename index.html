@@ -817,7 +817,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '4.0.2';
+const APP_VERSION = '4.0.3';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -834,6 +834,7 @@ function f(n,d=1){ return (n==null||isNaN(n)||!isFinite(n))?'–':nf(d).format(n
 function dFR(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return d+'/'+m+'/'+y; }
 function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function toISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+/* Dates calendrier : toujours le calendrier local de l'appareil (Europe/Paris pour l'utilisateur), jamais toISOString()/UTC — un livre coché « lu » à 00 h 30 garde le bon jour. Les horodatages updatedAt restent en millisecondes epoch (fusion de synchro inchangée). */
 function todayISO(){ return toISO(new Date()); }
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const MOIS_L=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
@@ -849,12 +850,14 @@ const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLo
 /* Clé de série : insensible à la casse, aux accents, à la ponctuation et aux espaces ; ignore « Édition originale » / « Nouvelle édition » et un « Tome N » final.
    Les renommages / fusions laissent un alias (par bibliothèque, synchronisé) pour que les tomes ajoutés ailleurs avec l'ancien nom rejoignent la série. */
 const BK_CACHE=new Map();
-function baseKey(s){ s=String(s||''); let k=BK_CACHE.get(s); if(k!==undefined) return k;
+function baseKey(s){ s=String(s||''); let k=BK_CACHE.get(s); if(k!==undefined){ BK_CACHE.delete(s); BK_CACHE.set(s,k);
+    return k; }
   let t=norm(s).replace(/×/g,' x ').replace(/&/g,' et ').replace(/[’'`´]/g,' ');
   t=t.replace(/\b(?:edition originale|ed\.? originale|nouvelle edition|edition francaise)\b/g,' ');
   t=t.replace(/[\s,.:;\-–—(]*\b(?:tome|t|vol|volume|n|no|numero)\.?\s*\d{1,4}\)?\s*$/,'');
   k=t.replace(/[^a-z0-9]+/g,''); if(!k) k=norm(s).replace(/\s+/g,' ');
-  if(BK_CACHE.size>5000) BK_CACHE.clear(); BK_CACHE.set(s,k); return k; }
+  if(BK_CACHE.size>=5000){ let n=BK_CACHE.size-4000; for(const o of BK_CACHE.keys()){ if(n--<=0) break; BK_CACHE.delete(o); } }
+  BK_CACHE.set(s,k); return k; }
 function serKey(s,lib=curLib){ let k=baseKey(s); const al=DB&&DB.serAlias; if(!al) return k;
   for(let i=0;i<6;i++){ const a=al[lib+'|'+k]; if(!a||!a.to) break; const n=baseKey(a.to); if(n===k) break; k=n; } return k; }
 function safeImg(u){ u=String(u||'').trim(); return (/^https:\/\/[^\s"'<>]+$/i.test(u)||/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u))?u:''; }
@@ -2002,7 +2005,7 @@ function relSyncWishes(){ if(!REL||!REL.series) return 0; let n=0; const now=Dat
 async function relFromGist(gist){ try{ const f=gist&&gist.files&&gist.files[MBRel.FILE]; if(!f) return; let t=f.content; if(f.truncated&&f.raw_url) t=await (await fetch(f.raw_url,{cache:'no-store'})).text();
   const o=JSON.parse(t); if(!o||!o.series||typeof o.series!=='object') return; REL=MBRel.mergeReleases(REL,o); saveRel(); setTimeout(()=>{ if(relSyncWishes()) renderAll(); },0); }catch(e){} }
 const relCtx={ json:async u=>{ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),15000); try{ const r=await fetch(u,{signal:ctl.signal}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); } finally{ clearTimeout(t); } },
-  text:async u=>{ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),15000); try{ const r=await fetch(u,{signal:ctl.signal}); return r.ok?await r.text():null; }catch(e){ return null; } finally{ clearTimeout(t); } } };
+  text:async u=>{ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),15000); try{ const r=await fetch(u,{signal:ctl.signal}); if(r.status===429||r.status===503){ const e=new Error('HTTP '+r.status); e.status=r.status; throw e; } return r.ok?await r.text():null; }catch(e){ if(e&&(e.status===429||e.status===503)) throw e; return null; } finally{ clearTimeout(t); } } };
 async function refreshReleases(o={}){ if(relBusy) return false; if(navigator.onLine===false){ if(!o.auto) toast('Hors ligne : l’actualisation demande internet'); return false; }
   const want=MBRel.wanted(DB); if(!want.length){ if(!o.auto) toast('Aucune série en cours à suivre'); return false; }
   relBusy=true; relProg='0 / '+want.length; setUiPref('relTry',Date.now()); paintRelBusy();
@@ -2061,7 +2064,7 @@ function relIcs(){ const l=relIcsList(relView()); if(!l.length){ toast('Aucune s
   const tx=s=>String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
   const fold=s=>{ const out=[]; let cur='', len=0; for(const ch of s){ const n=new TextEncoder().encode(ch).length; if(len+n>(out.length?74:75)){ out.push(cur); cur=''; len=0; } cur+=ch; len+=n; } out.push(cur); return out.join('\r\n '); };
   const d8=iso=>iso.replace(/-/g,''), nx=iso=>{ const d=new Date(iso+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+1); return d.toISOString().slice(0,10).replace(/-/g,''); };
-  const st=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+  const st=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,''); // DTSTAMP iCalendar : UTC imposé par le format, ce n'est pas une date calendrier
   const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Ma bibliotheque//Prochaines sorties//FR','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Prochaines sorties'];
   for(const [it,o] of l){ const src=it.src&&it.src[0]&&it.src[0].u;
     L.push('BEGIN:VEVENT','UID:'+tx(curLib+'-'+it.key+'-'+o.v)+'@ma-bibliotheque','DTSTAMP:'+st,'DTSTART;VALUE=DATE:'+d8(o.fr),'DTEND;VALUE=DATE:'+nx(o.fr),'SUMMARY:'+tx('📚 '+it.name+' – tome '+o.v),

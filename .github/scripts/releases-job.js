@@ -25,8 +25,8 @@ async function findGist() {
 }
 const ctx = {
   now: () => NOW,
-  json: async u => { const r = await fetch(u, { headers: { 'User-Agent': R.UA, Accept: 'application/json' } }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); },
-  text: async u => { const r = await fetch(u, { headers: { 'User-Agent': R.UA } }); return r.ok ? r.text() : null; },
+  json: async u => { const r = await fetch(u, { headers: { 'User-Agent': R.UA, Accept: 'application/json' } }); if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; } return r.json(); },
+  text: async u => { const r = await fetch(u, { headers: { 'User-Agent': R.UA } }); if (r.status === 429 || r.status === 503) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; } return r.ok ? r.text() : null; },
 };
 
 (async () => {
