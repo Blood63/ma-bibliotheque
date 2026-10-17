@@ -180,7 +180,7 @@ details p,details ol{line-height:1.55}
 .libhead{display:flex;justify-content:space-between;align-items:center;margin:8px 2px 12px;gap:8px}
 #libCount{font-size:12.5px;color:var(--mut)}
 .libgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 12px}
-.libgrid .bk,.liblist .bk,.serc{content-visibility:auto;contain-intrinsic-size:auto 220px}.liblist .bk{contain-intrinsic-size:auto 96px}.serc{contain-intrinsic-size:auto 300px}
+.libgrid .bk,.liblist .bk{content-visibility:auto;contain-intrinsic-size:auto 220px}.liblist .bk{contain-intrinsic-size:auto 96px}/* Séries : pas de content-visibility (hauteur estimée ≠ réelle → la page « remontait » lors des re-rendus de synchro) */
 @media(min-width:560px){.libgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(min-width:760px){.libgrid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 .libgrid .bk .cv{width:100%;aspect-ratio:2/3}
@@ -817,7 +817,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '4.0.1';
+const APP_VERSION = '4.0.2';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -1694,9 +1694,26 @@ function undoMerge(id){ const e=(DB.mergeLog||[]).find(x=>x.id===id); if(!e||e.u
   e.undoneAt=now; commit(); renderAll(); haptic([10,30,10]);
   toast('Fusion défaite : '+n+' tome'+(n>1?'s':'')+' restauré'+(n>1?'s':'')+(skip?' · '+skip+' ignoré'+(skip>1?'s':'')+' (modifié depuis)':'')); return true; }
 function mergesForLib(){ return (DB.mergeLog||[]).filter(e=>e&&(e.lib||'l1')===curLib).sort((a,b)=>(b.at||0)-(a.at||0)); }
-function renderUnmergeBar(){ const el=$('unmergeBar'); if(!el) return; const open=mergesForLib().filter(e=>!e.undoneAt); if(!open.length){ el.innerHTML=''; return; }
+/* Fusions anciennes (avant l'historique mergeLog, v4.0) : il ne reste que l'alias serAlias. On peut les défaire
+   pour les tomes qui portent encore l'ancien nom ; ceux déjà renommés sous le nom cible ne sont pas devinables, on ne les touche pas. */
+function legacyMerges(lib=curLib){ const out=[]; const al=DB.serAlias||{}; const books=LB(lib);
+  for(const [k,v] of Object.entries(al)){ if(!v||!v.to||!k.startsWith(lib+'|')) continue; const srcKey=k.slice(lib.length+1); if(!srcKey||srcKey===baseKey(v.to)) continue;
+    const affected=books.filter(b=>b.series&&baseKey(b.series)===srcKey); if(!affected.length) continue;
+    out.push({aliasKey:k,srcKey,from:affected[0].series,to:String(v.to),at:v.at||0,count:affected.length}); }
+  return out.sort((a,b)=>(b.at||0)-(a.at||0)); }
+function undoLegacyMerge(aliasKey){ const al=DB.serAlias=DB.serAlias||{}; const prev=al[aliasKey]; if(!prev||!prev.to) return false; const now=Date.now(); al[aliasKey]={to:null,at:now}; commit(); renderAll(); haptic([10,30,10]);
+  toast('Fusion ancienne défaite : les tomes restés sous l’ancien nom forment à nouveau leur série',{label:'Annuler',fn:()=>{ DB.serAlias[aliasKey]={to:prev.to,at:Date.now()}; commit(); renderAll(); toast('Annulé'); }}); return true; }
+/* Défilement Séries : ancrer sur la série visible pour qu'un re-rendu (synchro silencieuse, etc.) ne fasse pas « remonter » la page. */
+function serScrollAnchor(){ if(curPage!=='series'||serView!=='ser'||window.scrollY<=0) return null; const list=$('serList'); if(!list) return null;
+  for(const el of list.querySelectorAll('[data-ser]')){ const r=el.getBoundingClientRect(); if(r.bottom>110) return {key:el.dataset.ser,top:r.top,y:window.scrollY}; } return null; }
+function restoreSerScroll(a){ if(!a) return; const el=$('serList')&&$('serList').querySelector('[data-ser="'+CSS.escape(a.key)+'"]');
+  window.scrollTo(0,el?Math.max(0,window.scrollY+el.getBoundingClientRect().top-a.top):a.y); }
+function renderUnmergeBar(){ const el=$('unmergeBar'); if(!el) return; const open=mergesForLib().filter(e=>!e.undoneAt); if(!open.length){ const leg=legacyMerges(); if(!leg.length){ el.innerHTML=''; return; }
+    const e=leg[0]; el.innerHTML=`<div class="card sugg" style="--i:0"><div class="small" style="color:var(--gold2);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px">Fusion ancienne</div><div style="margin:4px 0 10px">« <b>${esc(e.from)}</b> » → « <b>${esc(e.to)}</b> » · ${e.count} tome${e.count>1?'s':''} encore sous l’ancien nom (fusion faite avant l’historique des fusions)</div><div class="row" style="gap:8px"><button class="btn sm" data-unmerge-legacy="${esc(e.aliasKey)}">Défaire cette fusion</button><button class="btn ghost sm" data-unmerge-list="1">Historique des fusions</button></div></div>`; return; }
   const e=open[0]; el.innerHTML=`<div class="card sugg" style="--i:0"><div class="small" style="color:var(--gold2);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px">Fusion récente</div><div style="margin:4px 0 10px">« <b>${esc((e.from||[]).join(' », « '))}</b> » → « <b>${esc(e.to)}</b> » · ${esc(fmtDT(e.at))}</div><div class="row" style="gap:8px"><button class="btn sm" data-unmerge="${esc(e.id)}">Défaire cette fusion</button><button class="btn ghost sm" data-unmerge-list="1">Historique des fusions</button></div></div>`; }
-function openUnmergeDlg(){ const list=mergesForLib(); $('umList').innerHTML=list.length?list.map(e=>`<div class="umi"><b>${esc((e.from||[]).join(' », « ')||'?')}</b> → <b>${esc(e.to)}</b><div class="small mut">${esc(fmtDT(e.at))} · ${(e.books||[]).length} tome${(e.books||[]).length>1?'s':''}${e.undoneAt?' · déjà défaite':''}</div>${e.undoneAt?'':`<div class="row"><button class="btn sm" data-unmerge="${esc(e.id)}">Défaire</button></div>`}</div>`).join(''):'<p class="small mut" style="text-align:center">Aucune fusion enregistrée dans cette bibliothèque.</p>';
+function openUnmergeDlg(){ const list=mergesForLib(); const leg=legacyMerges();
+  const legHtml=leg.map(e=>`<div class="umi"><b>${esc(e.from)}</b> → <b>${esc(e.to)}</b><div class="small mut">Fusion ancienne (avant l’historique des fusions)${e.at?' · '+esc(fmtDT(e.at)):''} · ${e.count} tome${e.count>1?'s':''} encore sous l’ancien nom. Seuls ces tomes redeviendront une série séparée ; les tomes déjà renommés « ${esc(e.to)} » ne sont pas touchés.</div><div class="row"><button class="btn sm" data-unmerge-legacy="${esc(e.aliasKey)}">Défaire</button></div></div>`).join('');
+  $('umList').innerHTML=(list.length?list.map(e=>`<div class="umi"><b>${esc((e.from||[]).join(' », « ')||'?')}</b> → <b>${esc(e.to)}</b><div class="small mut">${esc(fmtDT(e.at))} · ${(e.books||[]).length} tome${(e.books||[]).length>1?'s':''}${e.undoneAt?' · déjà défaite':''}</div>${e.undoneAt?'':`<div class="row"><button class="btn sm" data-unmerge="${esc(e.id)}">Défaire</button></div>`}</div>`).join(''):'')+legHtml||'<p class="small mut" style="text-align:center">Aucune fusion enregistrée dans cette bibliothèque.</p>';
   $('unmergeDlg').classList.add('on'); layerPush(); }
 function closeUnmergeDlg(fromPop){ if(!$('unmergeDlg').classList.contains('on')) return; $('unmergeDlg').classList.remove('on'); if(!fromPop) layerPop(); }
 function lev(a,b,max){ if(Math.abs(a.length-b.length)>max) return max+1; let p=Array.from({length:b.length+1},(_,i)=>i);
@@ -1733,6 +1750,7 @@ function serRelLine(g,it){ if(!it) return ''; let h='';
     if(t) h+=`<a href="#" class="srl rel${o&&o.st==='out'?' out':''}" data-sact="rel">📅 ${t} ›</a>`; }
   return h; }
 function renderSeries(){
+  const serAnchor=serScrollAnchor();
   document.querySelectorAll('#serSeg [data-sv]').forEach(b=>{ const on=b.dataset.sv===serView; b.classList.toggle('on',on); b.setAttribute('aria-selected',on); });
   $('serWrap').classList.toggle('hidden',serView==='rel'); $('relWrap').classList.toggle('hidden',serView!=='rel');
   if(serView==='rel'){ renderRel(); return; }
@@ -1759,6 +1777,7 @@ function renderSeries(){
       <div class="sacts"><button class="btn sec sm" data-sact="addvol">${ico('plus')}Tomes</button>${unread?'<button class="btn sec sm" data-sact="next">✓ Tome suivant lu</button><button class="btn sec sm" data-sact="allread">✓ Tout lu…</button>':''}<button class="btn ghost sm" data-sact="total">Nb total</button><button class="btn ghost sm" data-sact="list">Voir</button><button class="btn ghost sm" data-sact="rename">Renommer</button><button class="btn ghost sm" data-sact="merge">Fusionner…</button></div></div>`; }).join('')
     : `<div class="empty">${SVG_EMPTY}<h3>Aucune série</h3><p>Renseigne le champ « Série » en ajoutant un livre, ou utilise <b>+ → Tomes</b> pour ajouter One Piece 1 à 20 d’un coup.</p></div>`);
   animateRings($('serList'),prev.b.length?prev:null);
+  restoreSerScroll(serAnchor); // après le re-rendu complet (hauteurs réelles), sinon la synchro fait remonter la page
 }
 function seriesClick(e){
   const sg=e.target.closest('[data-sug]'); if(sg){ const c=sg.closest('.sugg'); const gs=seriesGroups(); const src=gs.find(x=>x.key===c.dataset.src), dst=gs.find(x=>x.key===c.dataset.dst);
@@ -2200,7 +2219,10 @@ function init(){
   $('nameForm').addEventListener('submit',saveRename);
   $('mgQ').addEventListener('input',renderMergeList); $('mgCancel').addEventListener('click',()=>closeMergeDlg());
   $('mergeDlg').addEventListener('click',e=>{ if(e.target===$('mergeDlg')){ closeMergeDlg(); return; } const it=e.target.closest('[data-mk]'); if(!it) return; const gs=seriesGroups(); const src=gs.find(x=>x.key===mergeSrc), dst=gs.find(x=>x.key===it.dataset.mk); closeMergeDlg(); if(src&&dst) mergeSeries(src,dst); }); $('nameCancel').addEventListener('click',()=>closeRename());
-  const unmergeClick=e=>{ const list=e.target.closest('[data-unmerge-list]'); if(list){ openUnmergeDlg(); return; } const b=e.target.closest('[data-unmerge]'); if(!b) return; const en=(DB.mergeLog||[]).find(x=>x.id===b.dataset.unmerge); if(!en) return;
+  const unmergeClick=e=>{ const list=e.target.closest('[data-unmerge-list]'); if(list){ openUnmergeDlg(); return; }
+    const lg=e.target.closest('[data-unmerge-legacy]'); if(lg){ const leg=legacyMerges().find(x=>x.aliasKey===lg.dataset.unmergeLegacy); if(!leg) return;
+      if(!confirm('Défaire la fusion ancienne « '+leg.from+' » → « '+leg.to+' » ?\nLes '+leg.count+' tome(s) encore nommés « '+leg.from+' » redeviendront une série séparée.')) return; closeUnmergeDlg(); undoLegacyMerge(leg.aliasKey); return; }
+    const b=e.target.closest('[data-unmerge]'); if(!b) return; const en=(DB.mergeLog||[]).find(x=>x.id===b.dataset.unmerge); if(!en) return;
     if(!confirm('Défaire la fusion « '+(en.from||[]).join(' », « ')+' » → « '+en.to+' » ?\nLes tomes reprennent leur ancien nom de série.')) return; closeUnmergeDlg(); undoMerge(en.id); };
   $('unmergeBar').addEventListener('click',unmergeClick); $('unmergeDlg').addEventListener('click',e=>{ if(e.target===$('unmergeDlg')){ closeUnmergeDlg(); return; } unmergeClick(e); });
   $('umCancel').addEventListener('click',()=>closeUnmergeDlg());
