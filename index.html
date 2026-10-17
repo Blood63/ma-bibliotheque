@@ -817,7 +817,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '4.0';
+const APP_VERSION = '4.0.1';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -1110,6 +1110,7 @@ const isFrIsbn=s=>/^(9782|97910)/.test(s);
 function splitSeries(title){ const m=String(title||'').match(/^(.*?)[\s,.:\-–—(]*(?:tome|t\.|vol\.?|volume|n°)\s*0*(\d{1,4})\b\)?/i); if(!m||!m[1].trim()) return null;
   const ser=m[1].trim().replace(/[\s,:\-–—]+(?:[ée]dition originale|perfect edition|[ée]dition collector|nouvelle [ée]dition)$/i,'').replace(/[\s,:\-–—(]+$/,'').trim();
   return ser?{series:ser,volume:+m[2]}:null; }
+function splitSeriesNum(title){ const m=String(title||'').match(/^(.+?)\s+(0*\d{1,4})(?:\s*[:\-–—]\s*.+)?$/); if(!m) return null; const ser=m[1].trim().replace(/[\s,:\-–—(]+$/,''); if(!ser||ser.length<2||/^\d+$/.test(ser)) return null; return {series:ser,volume:+m[2]}; }
 const MANGA_PUB=/gl[ée]nat manga|kana|ki-?oon|pika|kurokawa|tonkam|kaz[ée]|akata|ototo|mangetsu|meian|doki-?doki|crunchyroll|vega|nobi nobi|black box|soleil manga|panini manga|viz media|shueisha|kodansha|shogakukan|delcourt.?tonkam|h2t|komikku|noeve|kbooks|naban/i;
 const MANGA_HINT=/manga|sh[oōô]nen|seinen|sh[oōô]jo|josei|kodomo|du japonais|traduit du japonais/i;
 const nonLatin=s=>/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0400-\u04ff]/.test(s||'');
@@ -1135,7 +1136,7 @@ async function lookupGB(isbn){ const g=await fetchJSON('https://www.googleapis.c
 const MXC='info:lc/xmlns/marcxchange-v2';
 async function bnfQuery(isbn){ const txt=await fetchText('https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve&query='+encodeURIComponent('bib.isbn adj "'+isbn+'"')+'&recordSchema=unimarcxchange&maximumRecords=3',9000);
   if(!txt) return null; let doc; try{ doc=new DOMParser().parseFromString(txt,'application/xml'); }catch(e){ return null; }
-  const els=(n,t)=>n.getElementsByTagNameNS(MXC,t); const rec=[...els(doc,'record')].find(r=>[...els(r,'datafield')].some(f=>f.getAttribute('tag')==='200')); return rec?parseUnimarc(rec,els,txt,'BnF'):null; }
+  const els=(n,t)=>n.getElementsByTagNameNS(MXC,t); const recs=[...els(doc,'record')].filter(r=>[...els(r,'datafield')].some(f=>f.getAttribute('tag')==='200')); if(!recs.length) return null; const parsed=recs.map(r=>parseUnimarc(r,els,txt,'BnF')); return parsed.find(r=>r.series)||parsed[0]; }
 async function lookupBnF(isbn){ let r=await bnfQuery(isbn); // anciennes notices : parfois seulement l'ISBN-10
   if(!r&&/^978/.test(isbn)){ const i10=isbn10(isbn); if(i10) r=await bnfQuery(i10); } return r; }
 function isbn10(i13){ if(!/^978\d{10}$/.test(i13)) return ''; const s=i13.slice(3,12); let t=0; for(let i=0;i<9;i++) t+=(10-i)*+s[i]; const c=(11-t%11)%11; return s+(c===10?'X':String(c)); }
@@ -1207,6 +1208,7 @@ async function lookupISBN(isbn){
     let ex=null; for(const c of (bnf2.seriesAlt||[bnf2.series]).filter(Boolean)){ const k=serKey(c); const g=seriesGroups().find(x=>x.key===k); if(g){ ex={series:g.name,author:g.author,type:g.type}; break; } }
     res.series=ex?ex.series:bnf2.series?caseFrom(bnf2.series,refs):''; res.volume=bnf2.volume;
     res.type=bnf2.type; res.author=(ex&&ex.author)||bnf2.author; if(ex&&!res.type) res.type=ex.type; res.publisher=bnf2.publisher; res.genre=bnf2.genre;
+    if(!res.series){ const sp=splitSeries(bnf2.title||'')||splitSeriesNum(bnf2.title||''); const ex2=sp?seriesGroups().find(x=>x.key===serKey(sp.series)):null; if(sp&&(ex2||res.type==='Manga'||res.type==='BD')){ res.series=ex2?ex2.name:sp.series; res.volume=sp.volume; if(ex2&&!res.type) res.type=ex2.type; } }
     const t=caseFrom(bnf2.title,refs); const same=res.series&&norm(t)===norm(res.series);
     res.title=res.series&&(same||res.type==='Manga')?'':(t+(bnf2.sub?' : '+bnf2.sub:''));
   } else { const o=ol||gb; res.title=o.title; const sp=splitSeries(o.title); if(sp){ const ex=LB().find(b=>b.series&&serKey(b.series)===serKey(sp.series)); res.series=ex?ex.series:sp.series; res.volume=sp.volume; if(ex){ res.author=ex.author; res.type=ex.type; } } }
