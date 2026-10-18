@@ -107,6 +107,48 @@ async function fromBnf(ctx,name,year){ const w=words(name); if(!w) return null; 
   const q=new URLSearchParams({version:'1.2',operation:'searchRetrieve',recordSchema:'unimarcXchange',maximumRecords:'50',query:'bib.title all "'+w.replace(/"/g,'')+'" and bib.date any "'+ys+'"'});
   const x=await retryFetch(ctx,'text',BNF_SRU+'?'+q.toString()); if(x==null) return null; return {vols:parseBnf(x,name)}; }
 
+/* --- Enrichissement optionnel Apify/web (côté serveur uniquement) ---
+   Le navigateur ne reçoit JAMAIS de jeton Apify : ctx.apify n'est fourni que par la tâche GitHub
+   (secret APIFY_TOKEN). Sans ctx.apify, cette section ne fait strictement rien.
+   Données attendues (dataset rag-web-browser) : [{searchResult:{title,description,url},markdown|text,metadata:{title,url}}].
+   On n'accepte qu'une date plausible (jour ou mois+année) rattachée au prochain tome (from+1..from+3),
+   avec son URL source https. Tout échec/timeout est ignoré par l'appelant. */
+const APIFY_SRC='Apify/web';
+function apifyItems(data){ if(Array.isArray(data)) return data; if(data&&Array.isArray(data.items)) return data.items; if(data&&Array.isArray(data.data)) return data.data; if(data&&data.dataset&&Array.isArray(data.dataset.items)) return data.dataset.items; return []; }
+const MOIS_RE='janv(?:ier)?|f[ée]vr?(?:ier)?|mars|avr(?:il)?|mai|juin|juil(?:let)?|ao[ûu]t|sept?(?:embre)?|oct(?:obre)?|nov(?:embre)?|d[ée]c(?:embre)?';
+const MOIS_TXT={janv:1,janvier:1,fevr:2,fevrier:2,mars:3,avr:4,avril:4,mai:5,juin:6,juil:7,juillet:7,aout:8,sept:9,septembre:9,oct:10,octobre:10,nov:11,novembre:11,dec:12,decembre:12};
+function apifyDates(txt){ const out=[]; const low=String(txt||'').toLowerCase(); let m;
+  const reF=new RegExp('(\\d{1,2})(?:er)?\\s+('+MOIS_RE+')\\.?\\s+((?:19|20)\\d{2})','g');
+  while((m=reF.exec(low))){ const mo=MOIS_TXT[norm(m[2]).replace(/\./g,'')]; if(mo) out.push({i:m.index,end:m.index+m[0].length,fr:m[3]+'-'+String(mo).padStart(2,'0')+'-'+String(+m[1]).padStart(2,'0'),fp:'d'}); }
+  const reM=new RegExp('(?<!\\d)('+MOIS_RE+')\\.?\\s+((?:19|20)\\d{2})','g');
+  while((m=reM.exec(low))){ if(out.some(d=>m.index>=d.i&&m.index<d.end)) continue; const mo=MOIS_TXT[norm(m[1]).replace(/\./g,'')]; if(mo) out.push({i:m.index,end:m.index+m[0].length,fr:m[2]+'-'+String(mo).padStart(2,'0'),fp:'m'}); }
+  const reI=/(20\d{2})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?/g;
+  while((m=reI.exec(low))) out.push({i:m.index,end:m.index+m[0].length,fr:m[0].slice(0,m[3]?10:7),fp:m[3]?'d':'m'});
+  return out.sort((a,b)=>a.i-b.i); }
+function parseApify(data,name,from,nowMs){ const next=Math.max(0,+from|0)+1, yearNow=+parisToday(nowMs||Date.now()).slice(0,4);
+  const nameToks=words(name).split(' ').filter(w=>w.length>=4); let best=null;
+  apifyItems(data).slice(0,8).forEach((it,idx)=>{ if(!it||typeof it!=='object') return;
+    const sr=it.searchResult||{}, md=it.metadata||{}; const url=String(sr.url||it.url||md.url||md.canonicalUrl||'');
+    if(!/^https:\/\//.test(url)||/apify\.com/.test(url)) return;
+    const head=[sr.title||'',md.title||'',sr.description||'',md.description||''].join('\n');
+    const txt=(head+'\n'+String(it.markdown||it.text||'')).slice(0,30000);
+    if(nameToks.length&&!nameToks.some(w=>norm(txt).includes(w))) return;
+    for(const d of apifyDates(txt)){ const yr=+d.fr.slice(0,4); if(yr<yearNow-2||yr>yearNow+3) continue;
+      const win=txt.slice(Math.max(0,d.i-420),Math.min(txt.length,d.end+420)); let v=0,vd=1e9; const vre=/(?:tome|volume|vol\.?|t\.)\s*(\d{1,4})/gi; let vm;
+      while((vm=vre.exec(win))){ const n=+vm[1], dist=Math.abs((Math.max(0,d.i-420)+vm.index)-d.i); if(n>=next&&n<=next+3&&dist<vd){ vd=dist; v=n; } }
+      if(!v){ const th=head.match(/(?:tome|volume|vol\.?|t\.)\s*(\d{1,4})/i); if(th&&+th[1]>=next&&+th[1]<=next+3){ v=+th[1]; vd=500; } }
+      if(!v&&/prochain tome|prochaine sortie/i.test(win)){ v=next; vd=600; }
+      if(!v) continue;
+      let score=(v===next?60:v===next+1?35:15)+(d.fp==='d'?25:12)+(/sortie|sortira|parution|publication|disponible|précommande|precommande/i.test(win)?25:0)+Math.max(0,20-vd/30)-idx*3;
+      if(!best||score>best.score) best={v,fr:d.fr,fp:d.fp,url,score}; } });
+  return best?{v:best.v,fr:best.fr,fp:best.fp,url:best.url}:null; }
+async function apifyEnrich(ctx,item,r){ if(!ctx||typeof ctx.apify!=='function') return false;
+  try{ const data=await ctx.apify(item.name+' prochain tome date de sortie'); const f=parseApify(data,item.name,item.from,ctx.now?ctx.now():Date.now()); if(!f) return false;
+    const o=r.vols[f.v]||(r.vols[f.v]={v:f.v}); const rank=p=>p==='d'?3:p==='m'?2:1;
+    if(o.fr&&rank(o.fp)>=rank(f.fp)) return false; /* ne remplace jamais une date BnF/Wikipédia aussi précise ou plus */
+    o.fr=f.fr; o.fp=f.fp;
+    o.src=APIFY_SRC; if(!r.src.some(x=>x&&x.u===f.url)) r.src.push({n:APIFY_SRC,u:f.url}); delete r.err; return true; }catch(e){ return false; } }
+
 /* --- Séries à suivre (dans les deux bibliothèques) --- */
 function watchList(db){ const g=new Map(); for(const b of (db&&db.books)||[]){ if(!b||!b.series||!String(b.series).trim()) continue; const lib=LIBS.includes(b.lib)?b.lib:'l1'; const key=serKey(db,b.series,lib); const id=lib+'|'+key;
     let x=g.get(id); if(!x){ x={lib,key,names:{},type:b.type||'',owned:[],wish:[],max:0}; g.set(id,x); } const v=b.volume==null||b.volume===''?NaN:+b.volume;
@@ -128,7 +170,12 @@ async function fetchSeries(item,ctx){ const now=ctx.now?ctx.now():Date.now(), ye
 async function refreshAll(list,ctx,o={}){ const prev=(o.prev&&o.prev.series)||{}; const res={v:VERSION,at:ctx.now?ctx.now():Date.now(),by:o.by||'app',series:{}}; let i=0, done=0, failed=0; const conc=Math.max(1,o.conc||2);
   async function worker(){ while(i<list.length){ const it=list[i++]; let r; try{ r=await fetchSeries(it,ctx); }catch(e){ r={key:it.key,name:it.name,err:'erreur'}; }
       if(r.err){ failed++; if(prev[it.key]) r=Object.assign({},prev[it.key],{err:r.err}); } res.series[it.key]=r; done++; o.onProgress&&o.onProgress(done,list.length); if(o.delay) await new Promise(z=>setTimeout(z,o.delay)); } }
-  await Promise.all(Array.from({length:Math.min(conc,list.length)},worker)); res.failed=failed; res.count=list.length; return res; }
+  await Promise.all(Array.from({length:Math.min(conc,list.length)},worker));
+  /* Apify (optionnel, serveur seulement) : uniquement les séries encore sans date/sortie connue, en série, plafonné. */
+  if(ctx&&typeof ctx.apify==='function'){ const max=Math.max(0,Math.min(20,o.apifyMax!=null?+o.apifyMax:5)); let used=0;
+    for(const it of list){ if(used>=max) break; const r=res.series[it.key]; if(!r||r.status==='terminee') continue;
+      const known=Object.values(r.vols||{}).some(v=>v&&(v.fr||v.out)); if(known) continue; used++; if(await apifyEnrich(ctx,it,r)&&o.delay) await new Promise(z=>setTimeout(z,o.delay)); } }
+  res.failed=Object.values(res.series).filter(r=>r&&r.err).length; res.count=list.length; return res; }
 /* Fichier de résultats (gist) : on ne garde que des champs connus et bien formés, quoi qu'il contienne */
 const DATE_RE=/^\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$/;
 function cleanSeries(k,v){ if(!v||typeof v!=='object') return null; const o={key:String(v.key||k).slice(0,200),name:String(v.name||'').slice(0,300),at:+v.at||0,status:v.status==='encours'||v.status==='terminee'?v.status:null,
@@ -136,7 +183,7 @@ function cleanSeries(k,v){ if(!v||typeof v!=='object') return null; const o={key
   if(v.err) o.err=String(v.err).slice(0,60);
   for(const [kk,x] of Object.entries(v.vols&&typeof v.vols==='object'?v.vols:{})){ const n=+kk; if(!Number.isInteger(n)||n<1||n>4999||!x||typeof x!=='object') continue; const c={v:n};
     if(typeof x.fr==='string'&&DATE_RE.test(x.fr)){ c.fr=x.fr; c.fp=x.fr.length===10?'d':x.fr.length===7?'m':'y'; } if(typeof x.jp==='string'&&DATE_RE.test(x.jp)) c.jp=x.jp;
-    const i=isbn13(x.isbn); if(i) c.isbn=i; if(x.out) c.out=1; o.vols[n]=c; }
+    const i=isbn13(x.isbn); if(i) c.isbn=i; if(x.out) c.out=1; if(x.src===APIFY_SRC) c.src=APIFY_SRC; o.vols[n]=c; }
   return o; }
 function cleanRel(r){ if(!r||typeof r!=='object'||!r.series||typeof r.series!=='object') return null; const s={};
   for(const [k,v] of Object.entries(r.series)){ if(!k||k.length>200||k==='__proto__'||k==='constructor'||k==='prototype') continue; const c=cleanSeries(k,v); if(c) s[k]=c; }
@@ -166,5 +213,5 @@ function lastTuesday6(now){ const p=parisParts(now); const base=Date.UTC(p.y,p.m
 function parisToday(now){ const p=parisParts(now); return p.y+'-'+String(p.m).padStart(2,'0')+'-'+String(p.d).padStart(2,'0'); }
 
 return {VERSION,FILE,DATA_FILE,UA,LIBS,norm,baseKey,serKey,sameSeries,isbn13,isbn10,covers,wDate,tplBlocks,tplParams,parseTomes,parseInfobox,titleKey,parseBnf,bnfRecSeries,
-  retryFetch,bkCacheSize:()=>BK.size,_bk:BK,fromWikipedia,fromBnf,watchList,wanted,fetchSeries,refreshAll,mergeReleases,cleanRel,viewFor,weekRange,weekCount,parisParts,parisToUTC,lastTuesday6,parisToday};
+  retryFetch,bkCacheSize:()=>BK.size,_bk:BK,APIFY_SRC,parseApify,apifyEnrich,fromWikipedia,fromBnf,watchList,wanted,fetchSeries,refreshAll,mergeReleases,cleanRel,viewFor,weekRange,weekCount,parisParts,parisToUTC,lastTuesday6,parisToday};
 });

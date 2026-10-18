@@ -5,6 +5,9 @@
 const R = require('../../releases.js');
 const API = process.env.GH_API || 'https://api.github.com';
 const TOKEN = process.env.GIST_TOKEN || '';
+const APIFY_TOKEN = process.env.APIFY_TOKEN || ''; // optionnel : sans ce secret, l'enrichissement Apify est simplement ignoré
+const APIFY_API = process.env.APIFY_API || 'https://api.apify.com';
+const APIFY_MAX = Math.max(0, Math.min(10, +(process.env.APIFY_MAX || 6) || 0));
 const FORCE = process.env.FORCE === 'true';
 const NOW = process.env.NOW_MS ? +process.env.NOW_MS : Date.now();
 const log = (...a) => console.log(...a);
@@ -23,8 +26,16 @@ async function findGist() {
   }
   return null;
 }
+async function apifySearch(query) { // rag-web-browser via l'API REST Apify ; le jeton ne quitte jamais ce processus
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 70000);
+  try { const r = await fetch(APIFY_API + '/v2/acts/apify~rag-web-browser/run-sync-get-dataset-items?token=' + encodeURIComponent(APIFY_TOKEN),
+    { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'User-Agent': R.UA },
+      body: JSON.stringify({ query, maxResults: 3, outputFormats: ['markdown'], requestTimeoutSecs: 40 }) });
+    if (!r.ok) { const e = new Error('Apify ' + r.status); e.status = r.status; throw e; } return r.json();
+  } finally { clearTimeout(t); } }
 const ctx = {
   now: () => NOW,
+  ...(APIFY_TOKEN ? { apify: apifySearch } : {}),
   json: async u => { const r = await fetch(u, { headers: { 'User-Agent': R.UA, Accept: 'application/json' } }); if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; } return r.json(); },
   text: async u => { const r = await fetch(u, { headers: { 'User-Agent': R.UA } }); if (r.status === 429 || r.status === 503) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; } return r.ok ? r.text() : null; },
 };
@@ -42,11 +53,13 @@ const ctx = {
   let db; try { db = JSON.parse(await fileText(gist.files[R.DATA_FILE])); } catch (e) { log('::error::Fichier de données illisible.'); process.exit(1); }
   const want = R.wanted(db);
   log('Séries suivies : ' + want.length);
-  const res = await R.refreshAll(want, ctx, { prev, by: 'action', conc: 2, delay: 150 });
+  log(APIFY_TOKEN ? 'Apify : activé (enrichissement optionnel, max ' + APIFY_MAX + ' séries sans date connue).' : 'Apify : secret APIFY_TOKEN absent, enrichissement ignoré (comportement habituel).');
+  const res = await R.refreshAll(want, ctx, { prev, by: 'action', conc: 2, delay: 150, apifyMax: APIFY_MAX });
   if (want.length && res.failed === want.length) { log('::error::Aucune source joignable (' + res.failed + ' échecs) : fichier inchangé.'); process.exit(1); }
   const merged = R.mergeReleases(prev, res); merged.at = res.at; merged.by = 'action';
   for (const k of Object.keys(merged.series)) if (!want.find(w => w.key === k)) delete merged.series[k]; // séries retirées / terminées
   await gh('/gists/' + encodeURIComponent(gist.id), { method: 'PATCH', body: { files: { [R.FILE]: { content: JSON.stringify(merged) } } } });
   let up = 0; for (const s of Object.values(merged.series)) up += Object.keys(s.vols || {}).length;
-  log('Terminé : ' + want.length + ' séries, ' + up + ' tomes repérés, ' + res.failed + ' échec(s).');
+  const apifyN = Object.values(merged.series).filter(x => (x.src || []).some(y => y.n === R.APIFY_SRC)).length;
+  log('Terminé : ' + want.length + ' séries, ' + up + ' tomes repérés, ' + res.failed + ' échec(s)' + (APIFY_TOKEN ? ', ' + apifyN + ' série(s) avec source Apify/web.' : '.'));
 })().catch(e => { console.log('::error::' + (e.status ? 'GitHub ' + e.status + (e.status === 401 ? ' (jeton invalide ou expiré)' : '') : 'erreur') ); process.exit(1); });

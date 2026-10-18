@@ -23,4 +23,5 @@ jobs:
         run: node .github/scripts/releases-job.js
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }} # optionnel : enrichissement web des dates inconnues (ignoré si absent)
           FORCE: ${{ github.event_name == 'workflow_dispatch' }}

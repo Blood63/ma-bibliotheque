@@ -406,6 +406,7 @@ main.switching .page.on{opacity:0;transform:translate3d(0,6px,0)}
 .rtag{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:99px;white-space:nowrap}
 .rtag.out{background:var(--gold);color:#1d1606}
 .rtag.wk{background:rgba(217,180,90,.16);color:var(--gold2);border:1px solid rgba(217,180,90,.5)}
+.rtag.apify{background:rgba(127,178,232,.14);color:#9fc6f2;border:1px solid rgba(127,178,232,.45);text-transform:none;letter-spacing:0}
 .rrow.out .rcv{box-shadow:0 0 0 2px var(--gold),0 0 16px rgba(217,180,90,.35)}
 .rw{flex:none;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line2);background:rgba(6,11,29,.5);color:var(--txt2);border-radius:12px;padding:8px 10px;font-size:13px;font-weight:600;transition:transform .15s,background .2s}
 .rw:active{transform:scale(.94)}
@@ -682,6 +683,8 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
       <p class="mut">Choisis le type Manga, indique la série (ex. One Piece) et l’auteur, coche « Ajouter plusieurs tomes d’un coup » puis tomes 1 à 20. Les tomes déjà présents sont ignorés. Dans Séries, touche un tome pour le marquer lu et fixe le nombre total de tomes pour voir ceux qui manquent.</p></details>
     <details><summary>Lectures par mois</summary>
       <p class="mut">Le bouton ✓ compte la lecture dans le mois en cours ; tu peux choisir un autre mois (et l’année) dans la fiche du livre — pas besoin du jour exact. Pour les livres lus il y a longtemps, choisis « Lu (avant) » : ils comptent dans le total et le % de lus, mais pas dans les statistiques mensuelles ni l’objectif. Pour en marquer plusieurs d’un coup : Bibliothèque → bouton de sélection, ou Séries → « Tout Lu (avant) ».</p></details>
+    <details><summary>Prochaines sorties et Apify (optionnel)</summary>
+      <p class="mut">Voir l’aide « Sources et Apify » en haut de Séries → Prochaines sorties. En résumé : l’enrichissement Apify/web est optionnel, ne tourne que dans le contrôle GitHub du mardi (secret <code>APIFY_TOKEN</code> du dépôt, jamais dans l’application), et sans ce secret le comportement est inchangé. Le secret <code>GIST_TOKEN</code> peut toujours être nécessaire pour ce contrôle automatique.</p></details>
     <details><summary>Installer sur l’écran d’accueil</summary>
       <p class="mut">Android/Chrome : menu ⋮ → « Ajouter à l’écran d’accueil » / « Installer l’application ». iPhone/iPad : bouton Partager → « Sur l’écran d’accueil ». Ordinateur : icône d’installation dans la barre d’adresse. L’app fonctionne ensuite hors ligne.</p></details>
   </div>
@@ -817,7 +820,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '4.0.3';
+const APP_VERSION = '4.1.0';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -2025,12 +2028,12 @@ function relRelTxt(o){ if(o.fp!=='d') return ''; const n=Math.round((new Date(o.
   if(n===0) return 'aujourd’hui'; if(n===1) return 'demain'; if(n===-1) return 'hier'; const a=Math.abs(n), u=a<14?a+' j':a<62?Math.round(a/7)+' sem.':Math.round(a/30.44)+' mois'; return n>0?'dans '+u:'il y a '+u; }
 function relCover(key,o){ const c=MBRel.covers(o.isbn); return `<div class="rcv" data-cov="${esc(key+'|'+o.v)}">${c.length?`<img alt="" loading="lazy" referrerpolicy="no-referrer" data-i="0" data-c="${esc(c.join(' '))}" src="${esc(c[0])}">`:''}<span>T${o.v}</span></div>`; }
 function relCard(it){ const rows=it.next.map(o=>`<div class="rrow ${o.st}${o.wk?' wk':''}" data-v="${o.v}">${relCover(it.key,o)}<div class="rinfo"><b>Tome ${o.v}</b><div class="rdate">${esc(relDateTxt(o))}</div>
-    <div class="rrel">${o.st==='out'?'<span class="rtag out">Déjà sorti</span>':''}${o.wk&&o.st!=='out'?'<span class="rtag wk">Cette semaine</span>':''}<span>${esc(relRelTxt(o))}</span></div></div>
+    <div class="rrel">${o.st==='out'?'<span class="rtag out">Déjà sorti</span>':''}${o.wk&&o.st!=='out'?'<span class="rtag wk">Cette semaine</span>':''}${o.src==='Apify/web'?'<span class="rtag apify">Apify/web · à vérifier</span>':''}<span>${esc(relRelTxt(o))}</span></div></div>
     ${o.wish?`<button type="button" class="rw on" disabled>${ico('check')}Envies</button>`:`<button type="button" class="rw" data-rw="${o.v}" aria-label="Ajouter le tome ${o.v} aux envies">${ico('plus')}Envies</button>`}</div>`).join('');
-  const jd=it.jp&&typeof it.jp.d==='string'?it.jp.d:'', nx=jd?it.jp.v:it.last+1, tba=!it.next.length?`<div class="rtba">Tome ${nx} : ${jd?'pas encore annoncé en France · paru au Japon '+esc(String(relDateTxt({fr:jd,fp:jd.length===10?'d':jd.length===7?'m':'y'})).toLowerCase()):it.checked?'date pas encore annoncée':'pas encore vérifié'}</div>`:'';
+  const jd=it.jp&&typeof it.jp.d==='string'?it.jp.d:'', nx=jd?it.jp.v:it.last+1, webQ='https://www.google.com/search?q='+encodeURIComponent(it.name+' prochain tome date de sortie'), tba=!it.next.length?`<div class="rtba">Tome ${nx} : ${jd?'pas encore annoncé en France · paru au Japon '+esc(String(relDateTxt({fr:jd,fp:jd.length===10?'d':jd.length===7?'m':'y'})).toLowerCase()):it.checked?'date pas encore annoncée':'pas encore vérifié'} · <a href="${esc(webQ)}" target="_blank" rel="noopener noreferrer">Rechercher sur le web ↗</a></div>`:'';
   const au=it.auto==='terminee'?'terminée':it.auto==='encours'?'en cours':'';
   const sel=`<select class="pill rst" data-rs="${esc(it.key)}" aria-label="Statut de la série ${esc(it.name)}"><option value=""${!it.user?' selected':''}>Auto${au?' · '+au:''}</option><option value="encours"${it.user==='encours'?' selected':''}>En cours</option><option value="terminee"${it.user==='terminee'?' selected':''}>Terminée</option></select>`;
-  const srcs=(it.src||[]).filter(s=>s&&/^https:\/\/(fr\.wikipedia\.org|catalogue\.bnf\.fr)\//.test(String(s.u||'')));
+  const srcs=(it.src||[]).filter(s=>s&&/^https:\/\//.test(String(s.u||''))&&(s.n==='Apify/web'||/^https:\/\/(fr\.wikipedia\.org|catalogue\.bnf\.fr)\//.test(String(s.u||''))));
   const src=srcs.length?'Source : '+[...new Map(srcs.map(s=>[s.u,s])).values()].slice(0,3).map(s=>`<a href="${esc(s.u)}" target="_blank" rel="noopener noreferrer">${esc(s.n)} ↗</a>`).join(' · '):(it.checked?'Aucune source n’a d’information sur cette série.':'');
   return `<div class="card rcard" data-rk="${esc(it.key)}"><div class="rhd"><div style="min-width:0"><div class="rname">${esc(it.name)}</div><div class="small mut">Tu as jusqu’au tome ${it.last}${it.nb?' · '+it.nb+' tome'+(it.nb>1?'s':'')+' en tout'+(it.auto==='terminee'?' (terminée)':''):''}</div></div>${sel}</div>${rows}${tba}${src?`<div class="rsrc mut">${src}</div>`:''}</div>`; }
 function renderRel(){ const el=$('relList'); if(!el) return; const items=relView(); const wk=[],out=[],soon=[],tba=[],done=[];
@@ -2039,7 +2042,11 @@ function renderRel(){ const el=$('relList'); if(!el) return; const items=relView
   soon.sort((a,b)=>d0(a).localeCompare(d0(b))); out.sort((a,b)=>(b.next[0].fr||'').localeCompare(a.next[0].fr||''));
   const at=REL&&REL.at, by=REL&&REL.by;
   let h=`<div class="card relhead"><div style="min-width:0"><b>Prochaines sorties</b><div class="small mut" id="relInfo">${relBusy?'Actualisation… <span id="relProg">'+esc(relProg)+'</span>':at?'Vérifié le '+esc(fmtDT(at))+(by==='action'?' (automatique du mardi)':''):'Pas encore vérifié'}</div>
-    <div class="small mut">Séries de « ${esc(libName())} » · chaque mardi matin · sources : Wikipédia, BnF</div></div><button type="button" class="btn sec sm" id="btnRelRefresh"${relBusy?' disabled':''}>${relBusy?'…':'Actualiser'}</button></div>`;
+    <div class="small mut">Séries de « ${esc(libName())} » · chaque mardi matin · sources : Wikipédia, BnF, et Apify/web si activé (automatique du mardi uniquement)</div></div><button type="button" class="btn sec sm" id="btnRelRefresh"${relBusy?' disabled':''}>${relBusy?'…':'Actualiser'}</button></div>
+    <details class="card small" style="margin-top:10px"><summary>Aide · sources et Apify (optionnel)</summary>
+    <p class="mut">Les dates viennent d’abord de Wikipédia et de la BnF. Si une série reste sans date, le contrôle automatique du mardi peut — uniquement si tu l’actives — chercher sur le web via Apify et afficher la date avec la mention « Apify/web · à vérifier » et son lien source. L’application elle-même n’appelle jamais Apify et ne contient aucun jeton Apify.</p>
+    <p class="mut"><b>Pour activer :</b> dans Apify, ouvre <i>Settings → API &amp; Integrations</i> (console Apify → <i>Settings</i> → <i>Integrations</i>) et copie ton jeton API personnel. Puis, sur GitHub, dans le dépôt <code>ma-bibliotheque</code> : <i>Settings → Secrets and variables → Actions → New repository secret</i>, nom <code>APIFY_TOKEN</code>, valeur = ce jeton. Le secret <code>GIST_TOKEN</code> (portée « gist ») reste nécessaire pour le contrôle du mardi. Sans <code>APIFY_TOKEN</code>, rien ne change : l’enrichissement est simplement ignoré. Ne colle jamais ce jeton dans l’application.</p>
+    <p class="mut">Pour une série sans date, le lien « Rechercher sur le web ↗ » ouvre une simple recherche dans ton navigateur, sans jeton ni envoi de données.</p></details>`;
   if(!items.length) h+=`<div class="empty"><h3>Aucune série à suivre</h3><p>Ajoute des tomes d’une série (avec leur numéro) dans « ${esc(libName())} » : leurs prochaines sorties apparaîtront ici.</p></div>`;
   const sec=(t,list,n)=>list.length?`<div class="relsec">${t}${n?` <span class="bdg">${n}</span>`:''}</div>`+list.map(relCard).join(''):'';
   h+=sec('Cette semaine',wk,wk.length)+sec('Déjà sorti · pas encore chez toi',out,out.length)+sec('À venir',soon)+sec('Pas encore de date',tba);
