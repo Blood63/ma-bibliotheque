@@ -1,0 +1,22 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+    paths: ['index.html', 'releases.js', 'sw.js', 'tests/**', '.github/workflows/tests.yml']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Fonctions pures (baseKey, ISBN, fusion, dates, photos)
+        run: node tests/pure.test.js
+      - name: Syntaxe sw.js / releases.js
+        run: node --check sw.js && node --check releases.js

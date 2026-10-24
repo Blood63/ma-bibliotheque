@@ -231,6 +231,7 @@ body.selecting .bk .qlu{display:none}
 .vol.pop{animation:pop .45s var(--spring)}
 .sacts{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 .miss-t{font-size:12.5px;margin-top:2px}
+.miss-t .misst{color:var(--gold2);font-weight:600;text-decoration:none;white-space:nowrap;padding:6px 4px;margin:-6px -4px}
 
 /* ---------- Stats ---------- */
 .tbl{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
@@ -554,7 +555,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
     <div class="hact"><span id="syncDot"></span><button class="libsw" id="libSw" type="button" aria-label="Changer de bibliothèque"><span class="av" data-lib="l1"></span><span class="av" data-lib="l2"></span></button><button class="hbtn" data-p="data" id="btnSettings" aria-label="Réglages"><svg class="i"><use href="#i-gear"/></svg></button></div>
   </div>
   <div id="libBar">
-    <div class="srow"><div class="search"><svg class="i"><use href="#i-search"/></svg><input id="q" type="search" placeholder="Titre, auteur, série, ISBN…" autocomplete="off" enterkeyhint="search"></div>
+    <div class="srow"><div class="search"><svg class="i"><use href="#i-search"/></svg><input id="q" type="search" placeholder="Titre, auteur, série, ISBN, résumé…" autocomplete="off" enterkeyhint="search"></div>
       <button class="hbtn" id="btnView" aria-label="Changer d’affichage"><svg class="i"><use href="#i-list"/></svg></button>
       <button class="hbtn" id="btnSelect" aria-label="Sélection multiple"><svg class="i"><use href="#i-select"/></svg></button></div>
     <div class="chips">
@@ -620,11 +621,12 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
   </div>
   <div class="card st" style="--i:0">
     <h2>Objectifs de lecture <span class="mut" id="goalLib" style="font-size:15px;font-style:italic"></span></h2>
-    <p class="small mut" style="margin-top:0">Pour la bibliothèque affichée (change-la avec le sélecteur en haut). Tous les types et formats comptent (livres, mangas, BD, papier ou Kindle…). Les lectures « Lu (avant) » ne comptent pas dans l’objectif.</p>
+    <p class="small mut" style="margin-top:0">Pour la bibliothèque affichée (change-la avec le sélecteur en haut). Tous les types et formats comptent (livres, mangas, BD, papier ou Kindle…), sauf si tu choisis « Sans les mangas » ci-dessous. Les lectures « Lu (avant) » ne comptent pas dans l’objectif.</p>
     <div class="grid">
       <div><label for="goalMonth">Par mois</label><input id="goalMonth" type="number" inputmode="numeric" min="0" max="999" placeholder="5"></div>
       <div><label for="goalYear">Par an</label><input id="goalYear" type="number" inputmode="numeric" min="0" max="9999" placeholder="60"></div>
     </div>
+    <label for="goalCount" style="margin-top:10px">Lectures comptées</label><select id="goalCount"><option value="">Tous les livres, mangas compris</option><option value="nomanga">Sans les mangas</option></select>
     <p class="small mut" id="goalHint" style="margin:8px 0 0"></p>
   </div>
   <div class="card st" style="--i:1">
@@ -820,7 +822,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '4.1.0';
+const APP_VERSION = '4.2.0';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -913,7 +915,7 @@ const LIB_IDS=['l1','l2']; const LIB_DEFAULT={l1:'Bibliothèque 1',l2:'Biblioth�
 const FORMATS=['papier','kindle']; const FORMAT_LBL={papier:'Papier',kindle:'Kindle'};
 function defaultGoals(){ return {monthly:DEFAULT_GOAL_MONTH, yearly:null, updatedAt:0}; }
 function normGoals(g){ g=(g&&typeof g==='object')?Object.assign({},g):defaultGoals(); const m=Math.round(+g.monthly); g.monthly=(isFinite(m)&&m>=0&&g.monthly!==null&&g.monthly!=='')?Math.min(m,999):DEFAULT_GOAL_MONTH;
-  const y=Math.round(+g.yearly); g.yearly=(g.yearly!=null&&g.yearly!==''&&isFinite(y)&&y>0)?Math.min(y,9999):null; if(typeof g.updatedAt!=='number') g.updatedAt=0; return g; }
+  const y=Math.round(+g.yearly); g.yearly=(g.yearly!=null&&g.yearly!==''&&isFinite(y)&&y>0)?Math.min(y,9999):null; if(g.count!=='nomanga') delete g.count; /* v4.2 : « nomanga » = objectif sans les mangas (absent = tout compte) */ if(typeof g.updatedAt!=='number') g.updatedAt=0; return g; }
 function defaultLibs(){ return {l1:{name:LIB_DEFAULT.l1,nameAt:0},l2:{name:LIB_DEFAULT.l2,nameAt:0,goals:defaultGoals()}}; }
 function normLibs(x){ const o=(x&&typeof x==='object')?Object.assign({},x):{}; const d=defaultLibs();
   for(const id of LIB_IDS){ const v=(o[id]&&typeof o[id]==='object')?Object.assign({},o[id]):d[id]; const nm=String(v.name==null?'':v.name).replace(/\s+/g,' ').trim().slice(0,30);
@@ -928,6 +930,7 @@ function normBook(b){
   o.format = o.format==='kindle'?'kindle':'papier';
   for(const k of ['title','author','series','isbn','cover','genre','notes','summary']) o[k]=o[k]==null?'':String(o[k]).trim();
   o.summary=o.summary.slice(0,5000);
+  if('photo' in o && !(typeof o.photo==='string'&&(o.photo===''||phKeyOk(o.photo)))) o.photo=''; // photo de couverture en pleine taille (IndexedDB + fichier séparé du gist)
   const v=num(o.volume); o.volume=(v==null||isNaN(v))?null:v;
   o.status = o.status==='envie'?'envie':'possede';
   o.read = !!o.read; o.dateRead = o.read? isoDate(o.dateRead) : '';
@@ -993,10 +996,72 @@ function load(){ try{ const r=localStorage.getItem(KEY); DB=r?JSON.parse(r):null
   const log=migrate(DB); save(); if(log.length) setTimeout(()=>toast('Mise à jour des données : '+log.join(' · ')),400); }
 // Sauvegarde automatique avant une opération qui remplace les données (effacer, import « remplacer », restauration)
 const BK_KEY=KEY+'.backup.auto';
-function backupNow(reason){ try{ if(!DB||!DB.books||!DB.books.length) return true; localStorage.setItem(BK_KEY,JSON.stringify({at:Date.now(),reason,db:DB})); return true; }catch(e){ return false; } }
-function readBackup(){ try{ const o=JSON.parse(localStorage.getItem(BK_KEY)||'null'); return o&&o.db&&Array.isArray(o.db.books)?o:null; }catch(e){ return null; } }
+// v4.2 : la copie va dans IndexedDB (ne double plus l'espace du localStorage, limité à ~5 Mo) ; repli localStorage si IndexedDB est indisponible.
+let BK_MEM=null; // copie en mémoire de la dernière sauvegarde (lecture synchrone)
+function bkValid(o){ return o&&typeof o==='object'&&o.db&&Array.isArray(o.db.books)?o:null; }
+function backupNow(reason){ if(!DB||!DB.books||!DB.books.length) return true;
+  let o; try{ o={at:Date.now(),reason,db:JSON.parse(JSON.stringify(DB))}; }catch(e){ return false; }
+  if(phIdbOk){ BK_MEM=o; idbPut('kv','backup',o).then(()=>{ try{ localStorage.removeItem(BK_KEY); }catch(e){} }).catch(()=>{ try{ localStorage.setItem(BK_KEY,JSON.stringify(o)); }catch(e){ toast('Sauvegarde automatique impossible (stockage plein)'); } }); return true; }
+  try{ localStorage.setItem(BK_KEY,JSON.stringify(o)); BK_MEM=o; return true; }catch(e){ return false; } }
+function readBackup(){ if(BK_MEM) return BK_MEM; try{ return bkValid(JSON.parse(localStorage.getItem(BK_KEY)||'null')); }catch(e){ return null; } }
 function save(){ try{ localStorage.setItem(KEY,JSON.stringify(DB)); }catch(e){ toast('Stockage plein : supprime des photos de couverture ou exporte tes données.'); } }
 let dataRev=0; function commit(){ dataRev++; save(); scheduleSync(); }
+
+/* ---------- Photos de couverture (v4.2) ----------
+   Avant : la photo (JPEG base64) était dans le JSON synchronisé. Maintenant : b.cover garde une petite vignette (~3 Ko, visible par les
+   anciennes versions), b.photo = clé de la photo nette, stockée dans IndexedDB et synchronisée comme fichier séparé du gist (cover-<clé>.txt).
+   La photo nette ne s'affiche que si b.cover est encore une vignette (si une ancienne version remplace la couverture par une URL, l'URL gagne).
+   Les anciennes photos base64 déjà présentes restent telles quelles dans le JSON (aucune perte, visibles partout). */
+const PH_DB='maBibliotheque.idb', PH_PREFIX='cover-', PH_SUFFIX='.txt', PH_BATCH=3e6;
+const PH=new Map(); let phIdbOk=false;
+function phKeyOk(k){ return typeof k==='string'&&/^p[a-z0-9]{6,40}$/.test(k); }
+const phFile=k=>PH_PREFIX+k+PH_SUFFIX;
+const phKeyOfFile=n=>{ if(!n.startsWith(PH_PREFIX)||!n.endsWith(PH_SUFFIX)) return ''; const k=n.slice(PH_PREFIX.length,-PH_SUFFIX.length); return phKeyOk(k)?k:''; };
+const phNewKey=()=>'p'+uid().toLowerCase();
+let idbP=null;
+function idb(){ if(idbP) return idbP;
+  idbP=new Promise((res,rej)=>{ let r; try{ r=indexedDB.open(PH_DB,1); }catch(e){ rej(e); return; }
+    r.onupgradeneeded=()=>{ const d=r.result; for(const n of ['photos','kv']) if(!d.objectStoreNames.contains(n)) d.createObjectStore(n); };
+    r.onsuccess=()=>{ const d=r.result; d.onversionchange=()=>{ d.close(); idbP=null; }; res(d); }; r.onerror=()=>rej(r.error||new Error('idb')); r.onblocked=()=>rej(new Error('idb bloquée')); });
+  idbP.catch(()=>{ idbP=null; }); return idbP; }
+function idbTx(store,mode,fn){ return idb().then(d=>new Promise((res,rej)=>{ const tx=d.transaction(store,mode), st=tx.objectStore(store); const out={}; fn(st,out);
+  tx.oncomplete=()=>res(out.v); tx.onerror=tx.onabort=()=>rej(tx.error||new Error('idb')); })); }
+const idbGet=(s,k)=>idbTx(s,'readonly',(st,o)=>{ st.get(k).onsuccess=e=>o.v=e.target.result; });
+const idbPut=(s,k,v)=>idbTx(s,'readwrite',st=>{ st.put(v,k); });
+const idbDel=(s,keys)=>idbTx(s,'readwrite',st=>{ for(const k of keys) st.delete(k); });
+const idbEntries=s=>idbTx(s,'readonly',(st,o)=>{ let ks; st.getAllKeys().onsuccess=e=>ks=e.target.result; st.getAll().onsuccess=e=>o.v=(ks||[]).map((k,i)=>[k,e.target.result[i]]); });
+const isThumb=c=>/^data:image\//.test(String(c||''));
+function photoOf(b){ return b&&phKeyOk(b.photo)&&isThumb(b.cover)&&PH.get(b.photo)||''; }
+function coverUrl(b){ return photoOf(b)||safeImg(b&&b.cover); }
+function phStore(k,u){ if(!phKeyOk(k)||!safeImg(u)||!isThumb(u)) return Promise.resolve(false); PH.set(k,u); return idbPut('photos',k,u).then(()=>true,()=>false); }
+const phWanted=db=>{ const s=new Set(); for(const b of (db&&db.books)||[]) if(b&&phKeyOk(b.photo)&&isThumb(b.cover)) s.add(b.photo); return s; };
+// Photos jointes à un export JSON (clé « coverPhotos ») : rangées dans IndexedDB, jamais gardées dans les données synchronisées
+function phAbsorb(o){ if(!o||typeof o!=='object'||!('coverPhotos' in o)) return 0; const m=o.coverPhotos; delete o.coverPhotos; let n=0;
+  if(m&&typeof m==='object') for(const [k,u] of Object.entries(m)) if(phKeyOk(k)&&safeImg(u)&&isThumb(u)&&!PH.has(k)){ phStore(k,u); n++; } return n; }
+async function phInit(){
+  try{ await idb(); phIdbOk=true; }catch(e){ phIdbOk=false; return; }
+  try{ for(const [k,u] of await idbEntries('photos')) if(phKeyOk(k)&&safeImg(u)) PH.set(k,u); }catch(e){}
+  if(DB&&DB.coverPhotos){ phAbsorb(DB); save(); }
+  // sauvegarde automatique : migration localStorage → IndexedDB (sans perte : on n'efface qu'après une écriture relue)
+  try{ const idbBk=bkValid(await idbGet('kv','backup')); let ls=null; try{ ls=bkValid(JSON.parse(localStorage.getItem(BK_KEY)||'null')); }catch(e){}
+    let best=idbBk; if(ls&&(!best||ls.at>best.at)){ await idbPut('kv','backup',ls); const back=bkValid(await idbGet('kv','backup')); if(back&&back.at===ls.at) best=back; }
+    if(best){ BK_MEM=best; if(ls&&best.at>=ls.at) try{ localStorage.removeItem(BK_KEY); }catch(e){} } }catch(e){}
+  // ménage : photos qui ne servent plus à aucun livre (ni dans la sauvegarde automatique)
+  try{ const keep=phWanted(DB); const bk=readBackup(); if(bk) for(const k of phWanted(bk.db)) keep.add(k);
+    const gone=[...PH.keys()].filter(k=>!keep.has(k)); if(gone.length){ gone.forEach(k=>PH.delete(k)); await idbDel('photos',gone); } }catch(e){}
+  if(PH.size) renderAll(); if(curPage==='data') renderBackup();
+}
+// Synchro : fichiers du gist à envoyer / supprimer, puis photos manquantes à télécharger
+function phPlan(gist,merged){ const files={}; let size=0, more=false; const want=phWanted(merged);
+  const have=new Set(gist&&gist.files?Object.keys(gist.files).map(phKeyOfFile).filter(Boolean):[]);
+  for(const k of want) if(!have.has(k)&&PH.has(k)){ const u=PH.get(k); if(size&&size+u.length>PH_BATCH){ more=true; continue; } files[phFile(k)]={content:u}; size+=u.length; }
+  for(const k of have) if(!want.has(k)) files[phFile(k)]=null; // photo d'un livre supprimé (ou couverture remplacée)
+  return {files,more}; }
+async function phPull(gist,db){ if(!gist||!gist.files) return 0; let n=0;
+  for(const k of phWanted(db)){ if(PH.has(k)) continue; const f=gist.files[phFile(k)]; if(!f) continue;
+    let u=f.content; if(f.truncated&&f.raw_url){ try{ u=await (await fetch(f.raw_url,{cache:'no-store'})).text(); }catch(e){ u=''; } }
+    u=String(u||'').trim(); if(safeImg(u)&&isThumb(u)){ PH.set(k,u); try{ await idbPut('photos',k,u); }catch(e){} n++; } }
+  return n; }
 const getBook=id=>DB.books.find(b=>b.id===id);
 /* Bibliothèque active (mémorisée par appareil, jamais synchronisée) */
 let curLib='l1';
@@ -1035,12 +1100,16 @@ function seriesGroups(lib=curLib){
 
 
 const goalM=(l=curLib)=>libGoals(l).monthly;
+const goalNoManga=(l=curLib)=>libGoals(l).count==='nomanga';
+const goalCnt=(list,l=curLib)=>goalNoManga(l)?list.filter(b=>b.type!=='Manga').length:list.length; // lectures qui comptent pour l'objectif
 const goalY=(l=curLib)=>{ const g=libGoals(l); return g.yearly||g.monthly*12; };
 /* ---------- Formulaire ---------- */
 let fRating=null, fBefore=false, fFormat='papier';
 function setFormat(v){ fFormat=v==='kindle'?'kindle':'papier'; $('f_format').querySelectorAll('button').forEach(b=>{ const on=b.dataset.f===fFormat; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); }
 function setRating(r){ fRating=r; $('f_rate').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',r!=null&&i<r)); }
+let fPhoto=null; // photo prise dans le formulaire : {key, thumb, full}
 function fillForm(b,preset={}){
+  fPhoto=b&&photoOf(b)?{key:b.photo,thumb:b.cover,full:photoOf(b)}:null;
   const x=b||Object.assign({type:'Livre',status:'possede'},preset);
   $('f_id').value=b?b.id:''; $('formTitle').textContent=b?'Modifier':'Ajouter';
   $('f_type').value=x.type||'Livre'; $('f_status').value=x.status||'possede'; setFormat(x.format);
@@ -1057,7 +1126,7 @@ function updForm(){
   if($('f_read').checked) ympShow($('f_ymp'),$('f_dateRead').value,{key:$('f_id').value||'new'});
   $('dateHint').textContent=$('f_read').checked?($('f_dateRead').value?'Compté dans les lectures '+deMois($('f_dateRead').value)+' et dans l’objectif.':'Lu (avant) : compte dans le total et le % de lus, pas dans les stats mensuelles ni l’objectif.'):'';
   if(multi){ const a=num($('f_from').value), z=num($('f_to').value); $('rangeInfo').textContent=(Number.isInteger(a)&&Number.isInteger(z)&&z>=a)?'→ '+(z-a+1)+' tome'+(z>a?'s':''):''; }
-  const u=safeImg($('f_cover').value); const im=$('f_coverImg'); if(u){ if(im.getAttribute('src')!==u){ im.classList.remove('ok'); im.onload=()=>im.classList.add('ok'); im.onerror=()=>im.classList.add('hidden'); im.src=u; } im.classList.remove('hidden'); } else { im.removeAttribute('src'); im.classList.add('hidden'); }
+  const cv=$('f_cover').value.trim(); const u=fPhoto&&cv===fPhoto.thumb?fPhoto.full:safeImg(cv); const im=$('f_coverImg'); if(u){ if(im.getAttribute('src')!==u){ im.classList.remove('ok'); im.onload=()=>im.classList.add('ok'); im.onerror=()=>im.classList.add('hidden'); im.src=u; } im.classList.remove('hidden'); } else { im.removeAttribute('src'); im.classList.add('hidden'); }
   const pt=$('f_cvPrev').querySelector('.pt'); if(pt){ const t=$('f_title').value||($('f_series').value?$('f_series').value+($('f_volume').value?' · T'+$('f_volume').value:''):'Aperçu'); pt.textContent=t; $('f_cvPrev').querySelector('.ph').style.setProperty('--h',hueOf($('f_series').value||$('f_title').value)); }
 }
 function readForm(){
@@ -1078,13 +1147,15 @@ function submitForm(e){
     if(z-a+1>500){ alert('500 tomes maximum à la fois.'); return; }
     b.series=canonSeries(b.series,b.lib); const k=serKey(b.series,b.lib); const have=new Set(LB(b.lib).filter(x=>serKey(x.series,b.lib)===k&&x.volume!=null).map(x=>x.volume)); let n=0,skip=0;
     for(let i=a;i<=z;i++){ if(have.has(i)){ skip++; continue; }
-      DB.books.push(normBook(Object.assign({},b,{id:uid(),title:'',volume:i,isbn:'',cover:'',addedAt:now+n,updatedAt:now}))); n++; }
+      DB.books.push(normBook(Object.assign({},b,{id:uid(),title:'',volume:i,isbn:'',cover:'',photo:undefined,addedAt:now+n,updatedAt:now}))); n++; }
     commit(); toast(n+' tome'+(n>1?'s':'')+' ajouté'+(n>1?'s':'')+(b.lib!==curLib?' dans « '+libName(b.lib)+' »':'')+(skip?' · '+skip+' déjà présent'+(skip>1?'s':'')+' ignoré'+(skip>1?'s':''):''));
     fillForm(null); show('series'); return;
   }
   if(!b.title&&!b.series){ alert('Indique au moins un titre ou une série.'); $('f_title').focus(); return; }
   if(b.series) b.series=canonSeries(b.series,b.lib); // rejoint la série existante (casse, accents, « Édition originale »…)
   if(!id&&b.isbn){ const dup=LB(b.lib).find(x=>x.isbn&&isbn13(x.isbn)===b.isbn); if(dup&&!confirm('« '+bookLabel(dup)+' » a déjà cet ISBN. L’ajouter quand même ?')) return; }
+  if(fPhoto&&b.cover===fPhoto.thumb){ b.photo=fPhoto.key; if(!PH.has(fPhoto.key)||PH.get(fPhoto.key)!==fPhoto.full) phStore(fPhoto.key,fPhoto.full).then(ok=>{ if(!ok) toast('Photo nette non enregistrée (stockage) : la vignette reste'); }); }
+  else if(id&&(getBook(id)||{}).photo) b.photo=''; // couverture changée : la photo nette n'est plus utilisée
   if(id){ const i=DB.books.findIndex(x=>x.id===id); if(i>=0) DB.books[i]=normBook(Object.assign({},DB.books[i],b,{updatedAt:now})); }
   else DB.books.push(normBook(Object.assign({id:uid(),addedAt:now,updatedAt:now},b)));
   commit(); haptic([10,30,15]); fillForm(null); closeSheet();
@@ -1104,8 +1175,14 @@ function seriesChanged(){ // série connue : propose l'auteur, le type et le tom
   if(!$('f_volume').value){ const m=Math.max(0,...l.map(b=>Number.isInteger(b.volume)?b.volume:0)); if(m) $('f_volume').value=m+1; }
   if($('f_type').value==='Livre') $('f_type').value=l[0].type;
 }
-function coverFromFile(file){ if(!file) return; const rd=new FileReader(); rd.onload=()=>{ const img=new Image(); img.onload=()=>{ const w=240, h=Math.round(img.height*w/img.width); const c=document.createElement('canvas'); c.width=w; c.height=Math.min(h,400);
-  c.getContext('2d').drawImage(img,0,0,w,h); $('f_cover').value=c.toDataURL('image/jpeg',0.72); updForm(); toast('Photo de couverture ajoutée'); }; img.onerror=()=>alert('Image illisible'); img.src=rd.result; }; rd.readAsDataURL(file); }
+function shrink(img,w,maxH,q){ const sc=Math.min(1,w/img.width); const cw=Math.max(1,Math.round(img.width*sc)), h=Math.round(img.height*sc); const c=document.createElement('canvas'); c.width=cw; c.height=Math.min(h,maxH);
+  const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,cw,h); return c.toDataURL('image/jpeg',q); }
+// v4.2 : vignette ~3 Ko dans les données (compatibles anciennes versions) + photo nette (360 px) dans IndexedDB, synchronisée à part
+function coverFromFile(file){ if(!file) return; const rd=new FileReader(); rd.onload=()=>{ const img=new Image(); img.onload=()=>{
+    if(!phIdbOk){ $('f_cover').value=shrink(img,240,400,0.72); fPhoto=null; updForm(); toast('Photo ajoutée (stockage local limité : préfère une couverture en ligne si possible)'); return; }
+    const thumb=shrink(img,72,108,0.6), full=shrink(img,360,560,0.8); fPhoto={key:phNewKey(),thumb,full}; $('f_cover').value=thumb; updForm();
+    toast(syncCfg().token?'Photo de couverture ajoutée':'Photo ajoutée sur cet appareil (active la synchro pour la retrouver ailleurs)'); };
+  img.onerror=()=>alert('Image illisible'); img.src=rd.result; }; rd.readAsDataURL(file); }
 
 /* ---------- ISBN : Open Library puis Google Books (sans jeton) ---------- */
 function cleanIsbn(s){ return String(s||'').replace(/[^0-9Xx]/g,'').toUpperCase(); }
@@ -1395,13 +1472,15 @@ async function syncNow(opts={}){
     let remote=null;
     if(gist){ await relFromGist(gist); const txt=await readGistFile(gist);
       if(txt){ try{ remote=JSON.parse(txt); }catch(e){ throw new SyncError('Le fichier du gist est illisible (JSON invalide).'); }
-        if(!validImport(remote)) throw new SyncError('Le fichier du gist n’a pas le format attendu.'); migrate(remote); } }
-    const snapshot=JSON.parse(JSON.stringify(DB));
+        if(!validImport(remote)) throw new SyncError('Le fichier du gist n’a pas le format attendu.'); phAbsorb(remote); migrate(remote); } }
+    phAbsorb(DB); const snapshot=JSON.parse(JSON.stringify(DB));
     const merged=remote? mergeDB(snapshot,remote) : snapshot;
-    const body={files:{[GIST_FILE]:{content:JSON.stringify(merged)}}};
+    const plan=phIdbOk?phPlan(gist,merged):{files:{},more:false}; // photos nettes : fichiers séparés (les anciennes versions ne touchent qu'au fichier principal)
+    const body={files:Object.assign({[GIST_FILE]:{content:JSON.stringify(merged)}},plan.files)};
     if(gist){ await gh(c.token,'/gists/'+encodeURIComponent(gist.id),{method:'PATCH',body}); c.gistId=gist.id; }
     else { const g=await gh(c.token,'/gists',{method:'POST',body:Object.assign({description:'Ma bibliothèque – données (gist secret, ne pas rendre public)',public:false},body)}); c.gistId=g.id; }
     DB=mergeDB(merged,DB); // conserve une éventuelle saisie faite pendant la synchro
+    if(phIdbOk&&gist) await phPull(gist,DB).catch(()=>0); if(plan.more) syncAgain=true;
     save(); const c2=syncCfg(); c2.gistId=c.gistId; c2.lastSync=Date.now(); saveSyncCfg(c2);
     renderAll(); setSyncStatus('Synchronisé ✔','green'); setTimeout(relAutoCheck,1500); if(!opts.silent) toast('Synchronisation réussie');
     return true;
@@ -1478,9 +1557,9 @@ function csvToBooks(text){
 function validImport(o){ return o&&typeof o==='object'&&Array.isArray(o.books)&&o.books.every(b=>b&&typeof b==='object'&&typeof b.id==='string'&&typeof b.title==='string'); }
 function importText(txt,name,replace){
   let inc;
-  if(/\.json$/i.test(name)||/^\s*\{/.test(txt)){ const o=JSON.parse(txt); if(!validImport(o)) throw new Error('format'); inc=Object.assign({version:1,series:{}},o); migrate(inc); if(!o.libs) inc.libs=normLibs(JSON.parse(JSON.stringify(DB.libs||{}))); }
+  if(/\.json$/i.test(name)||/^\s*\{/.test(txt)){ const o=JSON.parse(txt); if(!validImport(o)) throw new Error('format'); phAbsorb(o); inc=Object.assign({version:1,series:{}},o); migrate(inc); if(!o.libs) inc.libs=normLibs(JSON.parse(JSON.stringify(DB.libs||{}))); }
   else { const now=Date.now(); inc={version:DATA_VERSION,series:{},tomb:{b:{}},books:csvToBooks(txt).map(b=>{ const ex=b.id&&getBook(b.id);
-      return normBook(ex?Object.assign({},b,{lib:ex.lib,addedAt:ex.addedAt,cover:b.cover||ex.cover,updatedAt:now}):Object.assign({},b,{id:b.id||uid(),lib:curLib,series:b.series?canonSeries(b.series,curLib):''})); })}; }
+      return normBook(ex?Object.assign({},b,{lib:ex.lib,addedAt:ex.addedAt,cover:b.cover||ex.cover,photo:(!b.cover||b.cover===ex.cover)?(ex.photo||''):'',updatedAt:now}):Object.assign({},b,{id:b.id||uid(),lib:curLib,series:b.series?canonSeries(b.series,curLib):''})); })}; }
   if(replace){ if(!confirm('Remplacer les '+DB.books.length+' livres de cet appareil par les '+inc.books.length+' du fichier ?\n(une sauvegarde automatique est gardée, restaurable dans Réglages)')) return 0; if(!backupNow('import')&&!confirm('Sauvegarde automatique impossible (stockage plein). Remplacer quand même ?')) return 0; DB=inc; }
   else { if(!confirm('Fusionner '+inc.books.length+' livre(s) du fichier avec '+(/\.json$/i.test(name)||/^\s*\{/.test(txt)?'tes bibliothèques':'« '+libName()+' »')+' ?')) return 0; DB=mergeDB(DB,inc); }
   commit(); renderAll(); toast('Import réussi : '+inc.books.length+' livre(s)'); return inc.books.length;
@@ -1504,7 +1583,7 @@ const ico=(n,cls='i')=>`<svg class="${cls}"><use href="#i-${n}"/></svg>`;
 function phHTML(b){ const ser=b.series&&b.volume!=null; const h=hueOf(b.series||b.title||b.id);
   return `<div class="ph" style="--h:${h}"><span class="pt">${esc(ser?b.series:bookLabel(b))}</span>${ser?`<span class="pv">${f(b.volume,1)}</span>`:`<span class="pa">${esc(b.author||'')}</span>`}</div>`; }
 function qluHTML(b){ const s=readState(b); return `<button class="qlu${s==='date'?' on':s==='before'?' on before':''}" data-act="read" aria-pressed="${b.read}" aria-label="${b.read?'Marquer non lu':'Marquer lu'}">${ico('check')}</button>`; }
-function coverHTML(b,o={}){ const u=safeImg(b.cover);
+function coverHTML(b,o={}){ const u=coverUrl(b);
   return `<div class="cv${u?' loading':''}"${o.noact?'':' data-act="open" tabindex="0" role="button" aria-label="'+esc(bookLabel(b))+'"'}>${phHTML(b)}${u?`<img class="cvimg" src="${esc(u)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`:''}`+
     (o.badges===false?'':`${b.volume!=null?`<span class="vb">T${f(b.volume,1)}</span>`:''}${b.status==='envie'?'<span class="wish">Envie</span>':''}${b.format==='kindle'?`<span class="fmt" title="Kindle" aria-label="Kindle">${ico('kindle')}</span>`:''}${o.qlu===false?'':qluHTML(b)}<span class="selmark">${ico('check')}</span>`)+`</div>`; }
 function readLabel(b){ return b.read?(b.dateRead?'lu en '+ymLabel(b.dateRead.slice(0,7)):'Lu (avant)'):''; }
@@ -1572,20 +1651,20 @@ function nextUp(){ const out=[], seen=new Set();
   LB().filter(b=>!b.read&&b.status==='possede'&&!b.series&&!seen.has(b.id)).sort((a,b)=>b.addedAt-a.addedAt).slice(0,8).forEach(b=>out.push(b));
   return out.slice(0,14); }
 const ctile=(b,i)=>`<div class="ctile bk st" data-id="${esc(b.id)}" style="--i:${i}">${coverHTML(b)}<div class="tt" data-act="open">${esc(bookLabel(b))}</div><div class="ta">${esc(b.read?readLabel(b):(b.author||''))}</div></div>`;
-function serTile(g,i){ const cov=g.books.filter(b=>safeImg(b.cover)).slice(0,3); const pick=(cov.length>=3?cov:[...cov,...g.books.filter(b=>!cov.includes(b))]).slice(0,3);
+function serTile(g,i){ const cov=g.books.filter(b=>coverUrl(b)).slice(0,3); const pick=(cov.length>=3?cov:[...cov,...g.books.filter(b=>!cov.includes(b))]).slice(0,3);
   return `<div class="sertile st" data-ser="${esc(g.key)}" style="--i:${i}"><div class="stack">${pick.map(b=>coverHTML(b,{noact:1,badges:false})).join('')}</div><div class="tt">${esc(g.name)}</div><div class="ta">${g.read}/${g.den} lus · ${esc(g.type)}</div><div class="bar"><i data-p="${g.den?(g.read/g.den).toFixed(3):0}"></i></div></div>`; }
 function renderHome(){
-  const now=new Date(), ym=todayISO().slice(0,7), y=ym.slice(0,4); const c=countCat(readsIn(ym)); const prev=readsIn(ymAdd(ym,-1)).length;
-  const yr=LB().filter(b=>b.read&&b.dateRead.startsWith(y)).length; const gm=goalM(), gy=goalY();
+  const now=new Date(), ym=todayISO().slice(0,7), y=ym.slice(0,4); const c=countCat(readsIn(ym)); const nm=goalNoManga(), gc=goalCnt(readsIn(ym)); const prev=goalCnt(readsIn(ymAdd(ym,-1)));
+  const yr=goalCnt(LB().filter(b=>b.read&&b.dateRead.startsWith(y))); const gm=goalM(), gy=goalY();
   const doy=Math.floor((now-new Date(now.getFullYear(),0,1))/864e5)+1, exp=gy*doy/(((+y%4===0&&+y%100!==0)||+y%400===0)?366:365), diff=Math.round(yr-exp);
   const own=LB().filter(b=>b.status==='possede'); const ownR=own.filter(b=>b.read).length; const rd=LB().filter(b=>b.read).length;
-  const left=gm-c.total;
+  const left=gm-gc;
   let h=`<div class="hero st" id="heroMonth" style="--i:0"><div class="hgrid"><div>
     <div class="eyebrow">${MOIS_L[+ym.slice(5)-1]} ${y}</div>
-    <div class="num"><span class="big" id="heroCount" data-count="${c.total}">${c.total}</span>${gm?`<span class="of">/ ${gm}</span>`:''}</div>
-    <div class="lbl">lecture${c.total>1?'s':''} ce mois-ci</div>
+    <div class="num"><span class="big" id="heroCount" data-count="${gc}">${gc}</span>${gm?`<span class="of">/ ${gm}</span>`:''}</div>
+    <div class="lbl">lecture${gc>1?'s':''} ce mois-ci${nm?' (hors mangas)':''}</div>
     <div class="split">${c.livres} livre${c.livres>1?'s':''} · ${c.mangas} manga${c.mangas>1?'s':''}${c.autres?' · '+c.autres+' BD/autre':''}</div>
-    <div class="prev">Mois dernier : ${prev}</div></div>${gm?ringHTML(c.total,gm,118,'objectif'):''}</div>
+    <div class="prev">Mois dernier : ${prev}</div></div>${gm?ringHTML(gc,gm,118,'objectif'):''}</div>
     <div class="goalmsg">${gm?(left>0?`✦ Encore <b>${left}</b>&nbsp;lecture${left>1?'s':''} pour atteindre ton objectif de ${gm}`:`✨ Objectif du mois atteint${left<0?' (+'+(-left)+')':''} — bravo !`):'Aucun objectif mensuel : règle-le dans ⚙️ Réglages.'}</div>
     <div class="ybar"><div class="t"><span>Objectif ${y}${gy?` · <span style="color:${diff>=0?'var(--gold2)':'var(--warn)'}">${diff>0?'en avance de '+diff:diff<0?'en retard de '+(-diff):'pile dans le rythme'}</span>`:''}</span><span>Total ${y} : <b>${yr}</b>${gy?' / '+gy:''}</span></div><div class="bar"><i data-p="${gy?Math.min(1,yr/gy).toFixed(3):0}"></i></div></div></div>`;
   h+=relHomeCard();
@@ -1615,10 +1694,14 @@ function sortPref(){ try{ const o=uiPref('sortLib',{}); const p=o&&o[curLib]; if
 function saveSortPref(p){ const o=uiPref('sortLib',{}); o[curLib]=p; setUiPref('sortLib',o); paintSortDir(); }
 function paintSortDir(){ const p=sortPref(); const b=$('btnSortDir'); if(b){ b.textContent=p.dir===1?'↑':'↓'; b.setAttribute('aria-label','Ordre '+(p.dir===1?'croissant':'décroissant')+' — inverser'); } const sel=$('fSort'); if(sel) sel.classList.toggle('set',!(p.k==='added'&&p.dir===SORT_DEF.added)); }
 function applySortPref(){ const p=sortPref(); if($('fSort')) $('fSort').value=p.k; paintSortDir(); }
+// Texte de recherche d'un livre (titre, auteur, série, ISBN, genre, notes, résumé…), mis en cache par livre tant qu'il n'est pas modifié
+const HAY=new WeakMap();
+function searchHay(b){ const c=HAY.get(b), sig=b.updatedAt+'|'+b.title+'|'+b.series+'|'+b.volume+'|'+String(b.summary||'').length+'|'+String(b.notes||'').length;
+  if(c&&c.sig===sig) return c.h; const h=norm([bookLabel(b),b.author,b.series,b.isbn,b.genre,b.notes,b.summary,b.format==='kindle'?'kindle':'',b.volume!=null?'t'+b.volume+' tome '+b.volume:''].join(' ')); HAY.set(b,{sig,h}); return h; }
 function libFiltered(){
   const q=norm($('q').value), t=$('fType').value, r=$('fRead').value, s=$('fStatus').value, se=$('fSeries').value, fo=$('fFormat').value; const sp=sortPref(); const so=sp.k;
   let l=LB().filter(b=>(!fo||b.format===fo)&&(!t||b.type===t)&&(r===''||(r==='b'?(b.read&&!b.dateRead):(b.read?'1':'0')===r))&&(!s||b.status===s)&&(!se||(se==='__none'?!b.series:serKey(b.series)===se)));
-  if(q){ const words=q.split(/\s+/).map(w=>{ if(/^[\d-]+x?$/i.test(w)&&/\d{4}/.test(w)){ w=w.replace(/-/g,''); if(isbnValid(w.toUpperCase())) w=isbn13(w); } return w; }); l=l.filter(b=>{ const h=norm([bookLabel(b),b.author,b.series,b.isbn,b.genre,b.notes,b.format==='kindle'?'kindle':'',b.volume!=null?'t'+b.volume+' tome '+b.volume:''].join(' ')); return words.every(w=>h.includes(w)); }); }
+  if(q){ const words=q.split(/\s+/).map(w=>{ if(/^[\d-]+x?$/i.test(w)&&/\d{4}/.test(w)){ w=w.replace(/-/g,''); if(isbnValid(w.toUpperCase())) w=isbn13(w); } return w; }); l=l.filter(b=>{ const h=searchHay(b); return words.every(w=>h.includes(w)); }); }
   const bySer=(a,b)=>coll.compare(a.series||'~',b.series||'~')||(a.volume??1e9)-(b.volume??1e9)||coll.compare(bookLabel(a),bookLabel(b));
   const base={added:(a,b)=>a.addedAt-b.addedAt, title:(a,b)=>coll.compare(bookLabel(a),bookLabel(b)), author:(a,b)=>coll.compare(a.author||'~',b.author||'~'),
     series:(a,b)=>coll.compare(a.series||'~',b.series||'~')||(a.volume??1e9)-(b.volume??1e9), read:(a,b)=>(a.dateRead||'').localeCompare(b.dateRead||''), rating:(a,b)=>(a.rating||0)-(b.rating||0)}[so]||bySer;
@@ -1755,11 +1838,18 @@ function serRelLine(g,it){ if(!it) return ''; let h='';
     else if(it.checked) t=it.jp&&it.jp.v?`Tome ${it.jp.v} : paru au Japon, pas encore annoncé en France`:`Tome ${it.last+1} : date pas encore annoncée`;
     if(t) h+=`<a href="#" class="srl rel${o&&o.st==='out'?' out':''}" data-sact="rel">📅 ${t} ›</a>`; }
   return h; }
+// v4.2 : une synchro silencieuse sans changement dans cette bibliothèque ne redessine plus l'onglet Séries (ni ne bouge le défilement)
+let serSigLast='', serSoft=false; const serMissOpen=new Set();
+function serSig(){ let h=dataRev+'|'+curLib+'|'+$('qs').value+'|'+$('fsType').value+'|'+$('fsState').value+'|'+(REL?REL.at:0)+'|'+todayISO()+'|'+PH.size+'|'+[...serMissOpen].join(',')+'|'+JSON.stringify(uiPref('serNo',[]));
+  for(const b of LB()) h+='|'+b.id+':'+b.updatedAt;
+  return h+JSON.stringify([DB.series,DB.serAlias||{},DB.serStatus||{},DB.mergeLog||[],DB.libs||{}]); }
+const MISS_INLINE=6;
 function renderSeries(){
-  const serAnchor=serScrollAnchor();
+  const soft=serSoft; serSoft=false; const serAnchor=serScrollAnchor();
   document.querySelectorAll('#serSeg [data-sv]').forEach(b=>{ const on=b.dataset.sv===serView; b.classList.toggle('on',on); b.setAttribute('aria-selected',on); });
   $('serWrap').classList.toggle('hidden',serView==='rel'); $('relWrap').classList.toggle('hidden',serView!=='rel');
   if(serView==='rel'){ renderRel(); return; }
+  const sig=serSig(); if(soft&&sig===serSigLast&&$('serList').childElementCount) return; serSigLast=sig;
   renderUnmergeBar();
   const q=norm($('qs').value), t=$('fsType').value, st=$('fsState').value;
   let gs=seriesGroups().filter(g=>(!q||norm(g.name+' '+g.author).includes(q))&&(!t||g.type===t));
@@ -1768,15 +1858,16 @@ function renderSeries(){
   $('serList').innerHTML=sug.map(s=>`<div class="card sugg st" data-pk="${esc(s.pk)}" data-src="${esc(s.small.key)}" data-dst="${esc(s.big.key)}"><div class="small" style="color:var(--gold2);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px">Même série ?</div>
       <div style="margin:4px 0 10px">« <b>${esc(s.small.name)}</b> » (${s.small.books.length}) et « <b>${esc(s.big.name)}</b> » (${s.big.books.length})</div>
       <div class="row" style="gap:8px"><button class="btn sm" data-sug="yes">Fusionner sous « ${esc(s.big.name)} »</button><button class="btn ghost sm" data-sug="no">Non</button></div></div>`).join('')+(gs.length? gs.map((g,gi)=>{ const p=g.den?g.read/g.den:0;
-    const cov=g.books.filter(b=>safeImg(b.cover)).slice(0,3); const pick=(cov.length>=3?cov:[...cov,...g.books.filter(b=>!cov.includes(b))]).slice(0,3);
+    const cov=g.books.filter(b=>coverUrl(b)).slice(0,3); const pick=(cov.length>=3?cov:[...cov,...g.books.filter(b=>!cov.includes(b))]).slice(0,3);
     const items=[...g.books.map(b=>{ const s=readState(b); return [b.volume??1e9,`<button class="vol${s==='date'?' read':s==='before'?' before':''}${b.status==='envie'?' envie':''}" data-vol="${esc(b.id)}" title="${esc(bookLabel(b))}${b.read?' – '+readLabel(b):''}">${b.volume!=null?f(b.volume,1):'•'}</button>`]; }),
-      ...g.missing.slice(0,300).map(v=>[v,`<span class="vol miss" title="Tome ${v} manquant">${v}</span>`])].sort((a,b)=>a[0]-b[0]).map(x=>x[1]).join('');
+      ...(g.missing.length<=MISS_INLINE||serMissOpen.has(g.key)?g.missing.slice(0,300):[]).map(v=>[v,`<span class="vol miss" title="Tome ${v} manquant">${v}</span>`])].sort((a,b)=>a[0]-b[0]).map(x=>x[1]).join('');
+    const nm=g.missing.length, mOpen=serMissOpen.has(g.key), mTxt=compactRange(g.missing);
     const unread=g.books.filter(b=>!b.read).length;
     return `<div class="serc st" data-ser="${esc(g.key)}" style="--i:${gi}"><div class="top"><div class="stack">${pick.map(b=>coverHTML(b,{noact:1,badges:false})).join('')}</div>
       <div style="min-width:0;flex:1"><div class="nm">${esc(g.name)}</div><div class="au">${esc(g.author)}</div><span class="tag ${g.type}">${g.type}</span></div></div>
       <div class="prog"><span>${g.owned} possédé${g.owned>1?'s':''}${g.wish?' · '+g.wish+' envie'+(g.wish>1?'s':''):''}${g.total?' · '+g.total+' tomes parus':''}</span><b>${g.read}/${g.den} lus</b></div>
       <div class="bar"><i data-p="${p.toFixed(3)}"></i></div>
-      <div class="miss-t">${g.missing.length?`<span class="orange">Manquants : ${esc(compactRange(g.missing))}</span>`:'<span class="mut">Aucun tome manquant'+(g.total?'':' (indique le nombre total de tomes pour vérifier)')+'</span>'}</div>
+      <div class="miss-t">${nm?`<span class="orange">${nm} manquant${nm>1?'s':''} : ${esc(!mOpen&&mTxt.length>90&&mTxt.lastIndexOf(',',88)>0?mTxt.slice(0,mTxt.lastIndexOf(',',88))+'…':mTxt)}</span>${nm>MISS_INLINE?` <a href="#" class="misst" data-sact="miss" aria-expanded="${mOpen}">${mOpen?'masquer':'afficher'}</a>`:''}`:'<span class="mut">Aucun tome manquant'+(g.total?'':' (indique le nombre total de tomes pour vérifier)')+'</span>'}</div>
       ${serRelLine(g,relM[g.key])}
       ${g.variants.length>1?`<div class="small mut vari">Écrit de ${g.variants.length} façons : ${g.variants.slice(0,4).map(n=>'« '+esc(n)+' »').join(', ')} · <a href="#" data-sact="unify">uniformiser</a></div>`:''}
       <div class="vols">${items}</div>
@@ -1793,13 +1884,16 @@ function seriesClick(e){
   if(v){ const b=getBook(v.dataset.vol); if(!b) return; const pop=()=>{ renderAll(); const nb=$('serList').querySelector(`[data-vol="${CSS.escape(b.id)}"]`); if(nb&&!RM()) nb.classList.add('pop'); };
     if(b.read){ setRead(b,false); commit(); haptic(8); toast(bookLabel(b)+' : non lu'); pop(); } else openReadPick([b],pop); return; }
   const a=e.target.closest('[data-sact]'); if(!a) return; const act=a.dataset.sact;
-  if(act==='rel'||act==='usetotal') e.preventDefault();
+  if(act==='rel'||act==='usetotal'||act==='miss') e.preventDefault();
+  if(act==='miss'){ const a0=serScrollAnchor(); serMissOpen.has(g.key)?serMissOpen.delete(g.key):serMissOpen.add(g.key); haptic(4); renderSeries(); restoreSerScroll(a0); return; }
   if(act==='rel'){ openRelView(); setTimeout(()=>{ const c=document.querySelector('#relList [data-rk="'+CSS.escape(g.key)+'"]'); if(c){ c.scrollIntoView({block:'center',behavior:'smooth'}); c.classList.add('flash'); setTimeout(()=>c.classList.remove('flash'),1600); } },80); return; }
   if(act==='usetotal'){ const n=+a.dataset.n, old=DB.series[g.key]; if(!Number.isInteger(n)||n<1) return; DB.series[g.key]={total:n,updatedAt:Date.now()}; commit(); renderAll(); haptic(6);
     toast('Total : '+n+' tomes',{label:'Annuler',fn:()=>{ DB.series[g.key]=old?Object.assign({},old,{updatedAt:Date.now()}):{total:null,updatedAt:Date.now()}; commit(); renderAll(); }}); return; }
-  if(act==='total'){ const r=prompt('Nombre total de tomes parus pour « '+g.name+' » (vide = inconnu)',g.total||''); if(r===null) return; const n=num(r);
-    if(n!=null&&(isNaN(n)||n<1||n>2000||!Number.isInteger(n))){ alert('Nombre invalide'); return; }
-    DB.series[g.key]={total:n,updatedAt:Date.now()}; commit(); renderAll(); }
+  if(act==='total'){ const key=g.key, old=DB.series[key];
+    openTextDlg({title:'Nombre total de tomes',hint:'Tomes parus pour « '+g.name+' ». Laisse vide si tu ne sais pas : les tomes manquants seront calculés jusqu’à ce nombre.',value:g.total?String(g.total):'',max:4,num:1,empty:1,placeholder:'ex. 42',
+      check:v=>{ if(v==='') return ''; const n=num(v); return (n==null||isNaN(n)||n<1||n>2000||!Number.isInteger(n))?'Nombre invalide (1 à 2000)':''; },
+      save:v=>{ const n=v===''?null:num(v); if((old&&old.total||null)===n) return; DB.series[key]={total:n,updatedAt:Date.now()}; commit(); renderAll(); haptic(6);
+        toast(n?'Total : '+n+' tomes':'Total effacé',{label:'Annuler',fn:()=>{ DB.series[key]=old?Object.assign({},old,{updatedAt:Date.now()}):{total:null,updatedAt:Date.now()}; commit(); renderAll(); }}); }}); }
   else if(act==='addvol'){ const from=(Math.max(0,...g.books.map(b=>Number.isInteger(b.volume)?b.volume:0)))+1;
     openAdd('range',{type:g.type,series:g.name,author:g.author,genre:(g.books.find(b=>b.genre)||{}).genre||''}); $('f_from').value=from; $('f_to').value=g.total&&g.total>=from?g.total:''; updForm(); }
   else if(act==='rename') openSeriesRename(g);
@@ -1845,7 +1939,7 @@ function renderStats(){
   $('stPeriod').value=[...ys.map(String),'last12'].includes(sel)?sel:String(cy);
   const per=$('stPeriod').value; const ms=periodMonths(per); const data=ms.map(m=>countCat(readsIn(m))); const hi=ms.indexOf(cur);
   const sum=data.reduce((t,d)=>({livres:t.livres+d.livres,mangas:t.mangas+d.mangas,autres:t.autres+d.autres,total:t.total+d.total}),{livres:0,mangas:0,autres:0,total:0});
-  const elapsed=ms.filter(m=>m<=cur).length||12; const best=Math.max(...data.map(d=>d.total)); const hit=gm?data.filter((d,i)=>ms[i]<=cur&&d.total>=gm).length:0;
+  const elapsed=ms.filter(m=>m<=cur).length||12; const best=Math.max(...data.map(d=>d.total)); const hit=gm?data.filter((d,i)=>ms[i]<=cur&&(goalNoManga()?d.total-d.mangas:d.total)>=gm).length:0;
   $('stKpi').innerHTML=[['lus '+(per==='last12'?'sur 12 mois':'en '+per),sum.total],['livres',sum.livres],['mangas',sum.mangas],['BD / autre',sum.autres],['moyenne / mois',f(sum.total/elapsed,1)],gm?['mois objectif atteint',hit+' / '+elapsed]:['meilleur mois',best?best+' ('+ymLabel(ms[data.findIndex(d=>d.total===best)]).split(' ')[0]+')':'–']]
     .map(([k,v])=>`<div class="kpi"><b>${v}</b><small>${k}</small></div>`).join('');
   $('chMode').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.m===chMode));
@@ -1854,7 +1948,7 @@ function renderStats(){
   if(statsGrow&&!RM()){ const c=$('chMonth'); c.classList.remove('grow'); void c.offsetWidth; c.classList.add('grow'); statsGrow=false; }
   $('tblMonth').innerHTML='<table class="tbl" id="tMonth"><tr><th>Mois</th><th>Livres</th><th>Mangas</th><th>BD/Autre</th><th>Total</th></tr>'+ms.map((m,i)=>{const d=data[i];return `<tr class="${i===hi?'cur':''}" data-ym="${m}"><td>${ymLabel(m)}${i===hi?' ◀':''}</td><td>${d.livres}</td><td>${d.mangas}</td><td>${d.autres}</td><td class="${gm&&d.total>=gm?'ok':''}"><b>${d.total}</b></td></tr>`}).join('')+
     `<tr class="tot"><td>Total ${per==='last12'?'12 mois':per}</td><td>${sum.livres}</td><td>${sum.mangas}</td><td>${sum.autres}</td><td>${sum.total}</td></tr></table>`;
-  const yr=LB().filter(b=>b.read&&b.dateRead.startsWith(cy+'-')).length; const before=LB().filter(b=>b.read&&!b.dateRead).length;
+  const yr=goalCnt(LB().filter(b=>b.read&&b.dateRead.startsWith(cy+'-'))); const before=LB().filter(b=>b.read&&!b.dateRead).length;
   const prev=snapRings($('stYearGoal'));
   $('stYearGoal').innerHTML=`<div class="yr">${ringHTML(yr,gy,96,String(cy))}<div><div class="serif" style="font-size:26px;color:var(--gold2);font-weight:700">${yr} <span style="font-size:17px;color:var(--mut);font-style:italic">/ ${gy||'–'}</span></div>
     <div class="small">${gy?(yr>=gy?'Objectif annuel atteint ✨':'Encore '+(gy-yr)+' lecture'+(gy-yr>1?'s':'')+' en '+cy):'Aucun objectif annuel'}</div><div class="small mut">${gm?gm+' / mois':''}${gm&&!libGoals().yearly?' · annuel = '+gm+' × 12':''} · <a href="#" data-go="data">modifier</a></div></div></div>`;
@@ -1877,8 +1971,8 @@ function renderCompare(cur,cy){ const ls=LIB_IDS; $('cmpT').textContent='Compare
   const row=(k,fn,cls='')=>`<tr class="${cls}"><td>${k}</td>${ls.map(l=>`<td>${fn(l)}</td>`).join('')}</tr>`;
   const yr=l=>LB(l).filter(b=>b.read&&b.dateRead.startsWith(cy+'-'));
   $('tblCmp').innerHTML='<table class="tbl cmp" id="tCmp"><tr><th></th>'+ls.map(l=>`<th class="nm${l===curLib?' cur':''}">${esc(libName(l))}</th>`).join('')+'</tr>'+
-    row('Ce mois-ci',l=>{ const n=readsIn(cur,LB(l)).length, g=goalM(l); return `<b>${n}</b>${g?' / '+g:''}`; })+
-    row('Année '+cy,l=>{ const n=yr(l).length, g=goalY(l); return `<b>${n}</b>${g?' / '+g:''}`; })+
+    row('Ce mois-ci',l=>{ const n=goalCnt(readsIn(cur,LB(l)),l), g=goalM(l); return `<b>${n}</b>${g?' / '+g:''}`; })+
+    row('Année '+cy,l=>{ const n=goalCnt(yr(l),l), g=goalY(l); return `<b>${n}</b>${g?' / '+g:''}`; })+
     row('dont Kindle ('+cy+')',l=>yr(l).filter(b=>b.format==='kindle').length)+
     row('Titres',l=>LB(l).length)+row('Lus au total',l=>LB(l).filter(b=>b.read).length)+
     row('Papier / Kindle',l=>{ const a=LB(l); return a.filter(b=>b.format==='papier').length+' / '+a.filter(b=>b.format==='kindle').length; })+'</table>'; }
@@ -1890,8 +1984,8 @@ function renderDetail(){
   const b=getBook(detailId); if(!b){ closeDetail(true); return; }
   const s=readState(b);
   $('dCover').innerHTML=coverHTML(b,{noact:1,badges:false}).replace(/^<div class="cv[^"]*">/,'').replace(/<\/div>$/,'');
-  $('dCover').className='dcov cv'+(safeImg(b.cover)?' loading':'')+($('dCover').classList.contains('hide')?' hide':''); hiRes($('dCover').querySelector('img'));
-  $('dBg').innerHTML=safeImg(b.cover)?`<img src="${esc(safeImg(b.cover))}" alt="" referrerpolicy="no-referrer">`:phHTML(b);
+  $('dCover').className='dcov cv'+(coverUrl(b)?' loading':'')+($('dCover').classList.contains('hide')?' hide':''); hiRes($('dCover').querySelector('img'));
+  $('dBg').innerHTML=coverUrl(b)?`<img src="${esc(coverUrl(b))}" alt="" referrerpolicy="no-referrer">`:phHTML(b);
   $('dTitle').textContent=bookLabel(b); $('dAuthor').textContent=b.author||'';
   $('dChips').innerHTML=`<span class="tag ${b.type}">${b.type}</span> ${b.status==='envie'?'<span class="tag envie">Liste d’envies</span>':''}<div>${[b.series?esc(b.series)+(b.volume!=null?' · Tome '+f(b.volume,1):''):null,b.genre?esc(b.genre):null,b.status==='envie'&&b.release?'Sortie '+esc(relDateTxt({fr:b.release,fp:b.release.length===10?'d':b.release.length===7?'m':'y'})):null].filter(Boolean).map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
   const r=$('dRead'); r.className='btn'+(b.read?' isread':''); r.innerHTML=b.read?(s==='date'?ico('check')+'Lu en '+moisAn(b.dateRead):ico('check')+'Lu (avant)'):ico('check')+'Marquer comme lu (ce mois-ci)';
@@ -1994,7 +2088,8 @@ function show(p,o={}){
 }
 function renderBackup(){ const bk=readBackup(); $('bkInfo').textContent=bk?('Sauvegarde automatique : '+fmtDT(bk.at)+' · '+bk.db.books.length+' livre(s) · avant '+bk.reason+'.'):''; $('btnRestore').classList.toggle('hidden',!bk);
   let n=0; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith(KEY)) n+=(localStorage.getItem(k)||'').length; } }catch(e){}
-  const ph=DB.books.filter(b=>String(b.cover).startsWith('data:')).length; $('storeInfo').textContent='Stockage utilisé sur cet appareil : '+f(n*2/1048576,1)+' Mo'+(ph?' (dont '+ph+' photo'+(ph>1?'s':'')+' de couverture)':'')+' · limite habituelle ≈ 5 Mo.'; }
+  const old=DB.books.filter(b=>isThumb(b.cover)&&!photoOf(b)).length, nw=DB.books.filter(b=>photoOf(b)).length; let pk=0; for(const k of phWanted(DB)) pk+=(PH.get(k)||'').length;
+  $('storeInfo').textContent='Stockage utilisé sur cet appareil : '+f(n*2/1048576,1)+' Mo'+(old?' (dont '+old+' ancienne'+(old>1?'s':'')+' photo'+(old>1?'s':'')+' de couverture)':'')+' · limite habituelle ≈ 5 Mo.'+(nw?' Photos nettes à part (IndexedDB) : '+nw+' · '+f(pk/1048576,2)+' Mo'+(syncCfg().token?', synchronisées en fichiers séparés.':', sur cet appareil seulement (active la synchro pour les retrouver ailleurs).'):''); }
 /* ---------- Prochaines sorties (module partagé releases.js : Wikipédia + BnF) ---------- */
 const REL_KEY=KEY+'.rel'; let REL=null, relBusy=false, relProg='', serView='ser', relMemo=null;
 function loadRel(){ try{ const o=JSON.parse(localStorage.getItem(REL_KEY)||'null'); REL=MBRel.cleanRel(o); }catch(e){ REL=null; } relMemo=null; }
@@ -2094,7 +2189,7 @@ function relImg(e){ const im=e.target; if(!(im instanceof HTMLImageElement)||!im
   if(!bad){ im.classList.add('ok'); return; } const c=(im.dataset.c||'').split(' ').filter(Boolean), i=(+im.dataset.i||0)+1; if(i<c.length){ im.dataset.i=i; im.src=c[i]; } else im.remove(); }
 
 function renderPage(p){ if(p==='home') renderHome(); if(p==='lib') renderLib(); if(p==='series') renderSeries(); if(p==='stats') renderStats(); if(p==='data'){ renderSync(); renderLibCard(); renderGoals(); renderBackup(); } }
-function renderAll(){ clearTimeout(rerT); relMemo=null; relBadges(); renderLibSw(); renderPage(curPage); if(curPage!=='home') renderHome(); fillDatalists(); if(detailOpen()) renderDetail(); if(curPage!=='lib'&&curPage!=='home') $('hEyebrow').textContent=eyebrowFor(curPage); }
+function renderAll(){ clearTimeout(rerT); relMemo=null; relBadges(); renderLibSw(); serSoft=true; renderPage(curPage); serSoft=false; if(curPage!=='home') renderHome(); fillDatalists(); if(detailOpen()) renderDetail(); if(curPage!=='lib'&&curPage!=='home') $('hEyebrow').textContent=eyebrowFor(curPage); }
 
 /* ---------- Bibliothèques : sélecteur & renommage ---------- */
 function libInitials(){ const i=LIB_IDS.map(l=>(libName(l).trim().match(/[\p{L}\p{N}]/u)||['?'])[0].toUpperCase()); return i[0]===i[1]?['1','2']:i; }
@@ -2113,11 +2208,14 @@ function setLib(l,o={}){ if(!LIB_IDS.includes(l)) return; if(l===curLib){ render
   if(RM()) go(); else { m.classList.add('swfade','switching'); setLib._t=setTimeout(()=>{ go(); window.scrollTo(0,0); m.classList.remove('switching'); setLib._t=setTimeout(()=>m.classList.remove('swfade'),200); },170); }
   if(curPage!=='home'&&!o.quiet) toast('Bibliothèque « '+libName()+' »'); }
 let nameFor=null, textCb=null;
-function openTextDlg(o){ hideToast(); nameFor='__text'; textCb=o.save; $('nameDlgT').textContent=o.title; $('nameDlgH').textContent=o.hint||''; $('nameIn').maxLength=o.max||30; $('nameIn').value=o.value||''; $('nameDlg').classList.add('on'); layerPush(); setTimeout(()=>{ $('nameIn').focus(); $('nameIn').select(); },60); }
-function openRename(l=curLib){ hideToast(); nameFor=l; textCb=null; $('nameIn').maxLength=30; $('nameDlgH').textContent='Le nom s’affiche dans le sélecteur et se synchronise sur tes appareils.'; $('nameIn').value=libName(l); $('nameDlgT').textContent='Renommer « '+libName(l)+' »'; $('nameDlg').classList.add('on'); layerPush('name');
+let textOpt={};
+function nameInMode(o){ const i=$('nameIn'); i.inputMode=o.num?'numeric':''; i.setAttribute('pattern',o.num?'[0-9]*':'.*'); i.placeholder=o.placeholder||'ex. un prénom'; }
+function openTextDlg(o){ hideToast(); nameFor='__text'; textCb=o.save; textOpt=o; nameInMode(o); $('nameDlgT').textContent=o.title; $('nameDlgH').textContent=o.hint||''; $('nameIn').maxLength=o.max||30; $('nameIn').value=o.value||''; $('nameDlg').classList.add('on'); layerPush(); setTimeout(()=>{ $('nameIn').focus(); $('nameIn').select(); },60); }
+function openRename(l=curLib){ hideToast(); nameFor=l; textCb=null; textOpt={}; nameInMode({}); $('nameIn').maxLength=30; $('nameDlgH').textContent='Le nom s’affiche dans le sélecteur et se synchronise sur tes appareils.'; $('nameIn').value=libName(l); $('nameDlgT').textContent='Renommer « '+libName(l)+' »'; $('nameDlg').classList.add('on'); layerPush('name');
   setTimeout(()=>{ $('nameIn').focus(); $('nameIn').select(); },60); }
 function closeRename(fromPop){ if(!$('nameDlg').classList.contains('on')) return; $('nameDlg').classList.remove('on'); nameFor=null; textCb=null; if(!fromPop) layerPop('name'); }
-function saveRename(e){ e&&e.preventDefault(); if(textCb){ const v=$('nameIn').value.replace(/\s+/g,' ').trim(); if(!v){ $('nameIn').focus(); toast('Indique un nom'); return; } const cb=textCb; closeRename(); cb(v); return; }
+function saveRename(e){ e&&e.preventDefault(); if(textCb){ const v=$('nameIn').value.replace(/\s+/g,' ').trim(); if(!v&&!textOpt.empty){ $('nameIn').focus(); toast('Indique un nom'); return; }
+    const err=textOpt.check&&textOpt.check(v); if(err){ $('nameIn').focus(); $('nameIn').select(); toast(err); return; } const cb=textCb; closeRename(); cb(v); return; }
   const l=nameFor; if(!l) return; const v=$('nameIn').value.replace(/\s+/g,' ').trim().slice(0,30);
   if(!v){ $('nameIn').focus(); toast('Indique un nom'); return; }
   if(v.toLowerCase()===libName(otherLib(l)).toLowerCase()){ $('nameIn').focus(); toast('L’autre bibliothèque porte déjà ce nom'); return; }
@@ -2129,12 +2227,12 @@ function renderLibCard(){ $('libList2').innerHTML=LIB_IDS.map(l=>{ const a=LB(l)
     <div class="row" style="gap:6px;flex:none">${l===curLib?'':`<button class="btn ghost sm" data-libgo="${l}">Afficher</button>`}<button class="btn sec sm" data-libren="${l}">Renommer</button></div></div>`; }).join(''); }
 
 /* ---------- Objectifs (réglages) ---------- */
-function renderGoals(){ const g=libGoals(); $('goalLib').textContent='· '+libName(); $('goalMonth').value=g.monthly; $('goalYear').value=g.yearly||''; $('goalYear').placeholder=String(g.monthly*12);
-  $('goalHint').textContent=g.monthly?('Objectif annuel : '+(g.yearly||g.monthly*12)+(g.yearly?' (personnalisé)':' (= '+g.monthly+' × 12, laisse vide pour garder ce calcul)')+'. 0 par mois = pas d’objectif.'):'Pas d’objectif mensuel (0).'; }
+function renderGoals(){ const g=libGoals(); $('goalLib').textContent='· '+libName(); $('goalCount').value=g.count==='nomanga'?'nomanga':''; $('goalMonth').value=g.monthly; $('goalYear').value=g.yearly||''; $('goalYear').placeholder=String(g.monthly*12);
+  $('goalHint').textContent=g.monthly?('Objectif annuel : '+(g.yearly||g.monthly*12)+(g.yearly?' (personnalisé)':' (= '+g.monthly+' × 12, laisse vide pour garder ce calcul)')+'. 0 par mois = pas d’objectif.'+(g.count==='nomanga'?' Les mangas lus restent dans les statistiques mais ne comptent pas pour l’objectif.':'')):'Pas d’objectif mensuel (0).'; }
 function saveGoals(){ const m=$('goalMonth').value.trim(), y=$('goalYear').value.trim();
   const mm=m===''?DEFAULT_GOAL_MONTH:Math.round(+m), yy=y===''?null:Math.round(+y);
   if(!isFinite(mm)||mm<0||(yy!=null&&(!isFinite(yy)||yy<0))){ toast('Objectif invalide'); renderGoals(); return; }
-  setLibGoals(normGoals({monthly:mm,yearly:yy||null,updatedAt:Date.now()})); commit(); renderGoals(); renderHome(); toast('Objectif enregistré : '+goalM()+' / mois · '+goalY()+' / an'); }
+  setLibGoals(normGoals({monthly:mm,yearly:yy||null,count:$('goalCount').value,updatedAt:Date.now()})); commit(); renderGoals(); renderHome(); toast('Objectif enregistré : '+goalM()+' / mois · '+goalY()+' / an'+(goalNoManga()?' (hors mangas)':'')); }
 
 /* ---------- Gestes : balayage entre onglets, glisser pour fermer ---------- */
 function initGestures(){
@@ -2183,7 +2281,7 @@ function clearFilters(){ ['q','fType','fRead','fStatus','fSeries','fFormat'].for
 
 /* ---------- Init ---------- */
 function init(){
-  load(); { const l=uiPref('lib','l1'); curLib=LIB_IDS.includes(l)?l:'l1'; }
+  load(); phInit(); { const l=uiPref('lib','l1'); curLib=LIB_IDS.includes(l)?l:'l1'; }
   $('f_type').innerHTML=TYPES.map(t=>`<option>${t}</option>`).join('');
   $('fType').innerHTML='<option value="">Type</option>'+TYPES.map(t=>`<option>${t}</option>`).join('');
   $('fsType').innerHTML='<option value="">Tous types</option>'+TYPES.map(t=>`<option>${t}</option>`).join('');
@@ -2264,15 +2362,17 @@ function init(){
   $('f_isbn').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doLookup(); } });
   $('btnScan').addEventListener('click',startScan); $('btnScanClose').addEventListener('click',stopScan);
   $('scanFile').addEventListener('change',e=>{ const f0=e.target.files[0]; e.target.value=''; scanFromPhoto(f0); });
-  ['goalMonth','goalYear'].forEach(id=>$(id).addEventListener('change',saveGoals));
+  ['goalMonth','goalYear','goalCount'].forEach(id=>$(id).addEventListener('change',saveGoals));
   const stamp=()=>todayISO();
-  $('btnExpJson').addEventListener('click',()=>download('ma-bibliotheque-'+stamp()+'.json',JSON.stringify(DB,null,2),'application/json'));
+  $('btnExpJson').addEventListener('click',()=>{ const o=Object.assign({},DB); const ph={}; for(const k of phWanted(DB)) if(PH.has(k)) ph[k]=PH.get(k); if(Object.keys(ph).length) o.coverPhotos=ph; // photos nettes jointes (relues par l'import)
+    download('ma-bibliotheque-'+stamp()+'.json',JSON.stringify(o,null,2),'application/json'); });
   $('btnExpCsv').addEventListener('click',()=>download('ma-bibliotheque-livres-'+stamp()+'.csv',booksCSV(),'text/csv;charset=utf-8'));
   $('btnExpCsvM').addEventListener('click',()=>download('ma-bibliotheque-lectures-mois-'+stamp()+'.csv',monthsCSV(),'text/csv;charset=utf-8'));
   $('impFile').addEventListener('change',e=>{ const file=e.target.files[0]; if(file) importFile(file); });
   $('btnReset').addEventListener('click',()=>{ if(confirm('Effacer toute la bibliothèque de cet appareil ?\n(une sauvegarde automatique est gardée, restaurable ici)')){ if(!backupNow('effacement')&&!confirm('Sauvegarde automatique impossible (stockage plein). Effacer quand même ?')) return; clearTimeout(syncTimer); DB=emptyDB(); save(); renderAll(); renderBackup(); toast('Données locales effacées'); } });
   $('btnRestore').addEventListener('click',()=>{ const bk=readBackup(); if(!bk) return; if(!confirm('Restaurer la sauvegarde du '+fmtDT(bk.at)+' ('+bk.db.books.length+' livres) ? Les données actuelles ('+DB.books.length+' livres) seront gardées comme nouvelle sauvegarde.')) return;
-    const cur=DB; const inc=JSON.parse(JSON.stringify(bk.db)); migrate(inc); if(!bk.db.libs) inc.libs=normLibs(JSON.parse(JSON.stringify(cur.libs||{}))); // ancienne sauvegarde : garder les noms actuels const t=Date.now(); inc.books.forEach(b=>{ b.updatedAt=Math.max(b.updatedAt,t); delete inc.tomb.b[b.id]; }); // restauré = plus récent que les suppressions
+    const cur=DB; const inc=JSON.parse(JSON.stringify(bk.db)); migrate(inc); if(!bk.db.libs) inc.libs=normLibs(JSON.parse(JSON.stringify(cur.libs||{}))); // ancienne sauvegarde : garder les noms actuels
+    const t=Date.now(); inc.books.forEach(b=>{ b.updatedAt=Math.max(b.updatedAt,t); delete inc.tomb.b[b.id]; }); // restauré = plus récent que les suppressions
     DB=cur; backupNow('restauration'); DB=inc; commit(); renderAll(); renderBackup(); toast('Sauvegarde restaurée : '+inc.books.length+' livres'); });
   $('verInfo').textContent='Ma bibliothèque v'+APP_VERSION+' · données v'+DATA_VERSION;
   initGestures(); fillForm(null); curPage=''; applySortPref(); renderLibSw();

@@ -30,3 +30,12 @@ Application web (PWA) pour suivre ses livres, mangas et BD : ajout par ISBN ou s
 App : https://blood63.github.io/ma-bibliotheque/
 
 Licences des composants embarqués : `vendor/LICENSE-*` (barcode-detector, zxing-wasm — MIT ; moteur ZXing-C++ — Apache-2.0).
+
+## Nouveautés 4.2
+
+- Photos de couverture prises avec l’appareil : miniature légère dans les données + photo complète stockée en IndexedDB et synchronisée dans un fichier séparé du gist (`cover-<clé>.txt`). Les anciennes versions continuent d’afficher la miniature.
+- Sauvegarde automatique déplacée en IndexedDB (ne double plus l’espace localStorage).
+- Service worker : filtre des couvertures corrigé, cache des couvertures limité à ~400 entrées.
+- Séries : tomes manquants résumés (dépliables), pas de re-rendu inutile après une synchro, position de défilement conservée.
+- Recherche dans les résumés ; saisie du nombre total de tomes via une boîte de dialogue ; objectif de lecture « sans les mangas » en option.
+- Tests unitaires (`node tests/pure.test.js`) exécutés en CI.
