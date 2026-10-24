@@ -72,7 +72,7 @@ main{overflow-x:clip;padding:6px 16px calc(var(--tabH) + 34px + env(safe-area-in
 @keyframes rise{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:none}}
 .sec-h{display:flex;justify-content:space-between;align-items:baseline;margin:22px 2px 10px}
 .sec-h h2{margin:0;font-family:var(--serif);font-size:21px;font-weight:700}
-.sec-h .lnk{background:none;border:0;color:var(--gold2);font-size:13px;padding:4px}
+.sec-h .lnk{background:none;border:0;color:var(--gold2);font-size:13px;padding:8px 6px;margin:-4px -2px}
 .card{background:linear-gradient(180deg,rgba(24,37,78,.55),rgba(15,24,54,.92));border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--sh)}
 .card h2,.card h3{font-family:var(--serif);margin:0 0 10px;font-weight:700}
 .card h2{font-size:20px}.card h3{font-size:17px}
@@ -822,7 +822,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '4.2.0';
+const APP_VERSION = '4.3.0';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -1038,6 +1038,11 @@ const phWanted=db=>{ const s=new Set(); for(const b of (db&&db.books)||[]) if(b&
 // Photos jointes à un export JSON (clé « coverPhotos ») : rangées dans IndexedDB, jamais gardées dans les données synchronisées
 function phAbsorb(o){ if(!o||typeof o!=='object'||!('coverPhotos' in o)) return 0; const m=o.coverPhotos; delete o.coverPhotos; let n=0;
   if(m&&typeof m==='object') for(const [k,u] of Object.entries(m)) if(phKeyOk(k)&&safeImg(u)&&isThumb(u)&&!PH.has(k)){ phStore(k,u); n++; } return n; }
+// Stockage persistant : demande au navigateur de ne pas effacer les données (localStorage + photos IndexedDB) quand l'appareil manque de place.
+// Chrome/Safari répondent sans fenêtre ; Firefox afficherait une demande, on ne la déclenche donc pas au démarrage.
+let STORE_PERSIST=null;
+async function storePersist(){ try{ const st=navigator.storage; if(!st||!st.persisted) return; STORE_PERSIST=await st.persisted();
+  if(!STORE_PERSIST&&st.persist&&!/firefox/i.test(navigator.userAgent)&&DB&&DB.books&&DB.books.length) STORE_PERSIST=await st.persist(); }catch(e){} }
 async function phInit(){
   try{ await idb(); phIdbOk=true; }catch(e){ phIdbOk=false; return; }
   try{ for(const [k,u] of await idbEntries('photos')) if(phKeyOk(k)&&safeImg(u)) PH.set(k,u); }catch(e){}
@@ -1458,8 +1463,17 @@ async function findGist(token){
   return null;
 }
 async function readGistFile(gist){ const f=gist.files&&gist.files[GIST_FILE]; if(!f) return null;
-  if(f.truncated&&f.raw_url){ try{ return await (await fetch(f.raw_url,{cache:'no-store'})).text(); }catch(e){ throw new SyncError('Impossible de télécharger le fichier du gist.'); } } // sans jeton
+  if(f.truncated&&f.raw_url){ let r; try{ r=await fetch(f.raw_url,{cache:'no-store'}); }catch(e){ throw new SyncError('Impossible de télécharger le fichier du gist.'); } // sans jeton
+    if(!r.ok) throw new SyncError('Impossible de télécharger le fichier du gist ('+r.status+').'); return await r.text(); }
   return f.content; }
+// Synchro légère : la liste des gists donne les fichiers sans leur contenu (nom, taille, lien figé sur la révision).
+// On ne télécharge ensuite que le fichier principal, les sorties et les photos absentes de cet appareil, au lieu de toutes les photos à chaque synchro.
+async function gistLite(token,id){ if(!id) return null;
+  for(let p=1;p<=10;p++){ const list=await gh(token,'/gists?per_page=100&page='+p); const g=(list||[]).find(x=>x&&x.id===id);
+    if(g){ const files={}; for(const [n,f] of Object.entries(g.files||{})){ if(!f||typeof f.raw_url!=='string'||!/^https:\/\/gist\.githubusercontent\.com\//.test(f.raw_url)) return null; files[n]={filename:n,size:f.size,raw_url:f.raw_url,truncated:true}; }
+      return {id:g.id,files,lite:true}; }
+    if(!list||list.length<100) return null; }
+  return null; }
 let syncing=false, syncAgain=false, syncTimer=null;
 async function syncNow(opts={}){
   const c=syncCfg(); if(!c.token){ setSyncStatus('Aucun jeton enregistré : colle ton jeton GitHub ci-dessus.','red'); return false; }
@@ -1467,17 +1481,20 @@ async function syncNow(opts={}){
   const btn=$('btnSync'); if(btn) btn.disabled=true;
   try{
     let gist=null;
-    if(c.gistId){ try{ gist=await gh(c.token,'/gists/'+encodeURIComponent(c.gistId)); }catch(e){ if(e.status!==404) throw e; c.gistId=''; } }
+    if(c.gistId){ try{ gist=await gistLite(c.token,c.gistId); }catch(e){ if(!(e instanceof SyncError)||e.status===401) throw e; gist=null; } }
+    let txt=null; if(gist){ try{ txt=await readGistFile(gist); }catch(e){ gist=null; } } // repli : lecture complète du gist
+    if(!gist&&c.gistId){ try{ gist=await gh(c.token,'/gists/'+encodeURIComponent(c.gistId)); }catch(e){ if(e.status!==404) throw e; c.gistId=''; } }
     if(!gist){ const g=await findGist(c.token); if(g) gist=await gh(c.token,'/gists/'+encodeURIComponent(g.id)); }
     let remote=null;
-    if(gist){ await relFromGist(gist); const txt=await readGistFile(gist);
+    if(gist){ await relFromGist(gist); if(txt==null||!gist.lite) txt=await readGistFile(gist);
       if(txt){ try{ remote=JSON.parse(txt); }catch(e){ throw new SyncError('Le fichier du gist est illisible (JSON invalide).'); }
         if(!validImport(remote)) throw new SyncError('Le fichier du gist n’a pas le format attendu.'); phAbsorb(remote); migrate(remote); } }
     phAbsorb(DB); const snapshot=JSON.parse(JSON.stringify(DB));
     const merged=remote? mergeDB(snapshot,remote) : snapshot;
     const plan=phIdbOk?phPlan(gist,merged):{files:{},more:false}; // photos nettes : fichiers séparés (les anciennes versions ne touchent qu'au fichier principal)
     const body={files:Object.assign({[GIST_FILE]:{content:JSON.stringify(merged)}},plan.files)};
-    if(gist){ await gh(c.token,'/gists/'+encodeURIComponent(gist.id),{method:'PATCH',body}); c.gistId=gist.id; }
+    const same=gist&&txt!=null&&txt===body.files[GIST_FILE].content&&Object.keys(plan.files).length===0; // rien de neuf : pas de nouvelle révision du gist
+    if(gist){ if(!same) await gh(c.token,'/gists/'+encodeURIComponent(gist.id),{method:'PATCH',body}); c.gistId=gist.id; }
     else { const g=await gh(c.token,'/gists',{method:'POST',body:Object.assign({description:'Ma bibliothèque – données (gist secret, ne pas rendre public)',public:false},body)}); c.gistId=g.id; }
     DB=mergeDB(merged,DB); // conserve une éventuelle saisie faite pendant la synchro
     if(phIdbOk&&gist) await phPull(gist,DB).catch(()=>0); if(plan.more) syncAgain=true;
@@ -1559,7 +1576,11 @@ function importText(txt,name,replace){
   let inc;
   if(/\.json$/i.test(name)||/^\s*\{/.test(txt)){ const o=JSON.parse(txt); if(!validImport(o)) throw new Error('format'); phAbsorb(o); inc=Object.assign({version:1,series:{}},o); migrate(inc); if(!o.libs) inc.libs=normLibs(JSON.parse(JSON.stringify(DB.libs||{}))); }
   else { const now=Date.now(); inc={version:DATA_VERSION,series:{},tomb:{b:{}},books:csvToBooks(txt).map(b=>{ const ex=b.id&&getBook(b.id);
-      return normBook(ex?Object.assign({},b,{lib:ex.lib,addedAt:ex.addedAt,cover:b.cover||ex.cover,photo:(!b.cover||b.cover===ex.cover)?(ex.photo||''):'',updatedAt:now}):Object.assign({},b,{id:b.id||uid(),lib:curLib,series:b.series?canonSeries(b.series,curLib):''})); })}; }
+      if(ex){ const o=Object.assign({},ex,b,{lib:ex.lib,addedAt:ex.addedAt,cover:b.cover||ex.cover,updatedAt:now}); // part de la fiche existante : champs absents du CSV conservés
+        if(ex.photo&&(!b.cover||b.cover===ex.cover)) o.photo=ex.photo; else if(ex.photo) o.photo=''; else delete o.photo;
+        if(b.dateRead&&ex.dateRead&&ex.dateRead.slice(0,7)===b.dateRead.slice(0,7)) o.dateRead=ex.dateRead; // le CSV n'a que mois/année : garde le jour précis
+        return normBook(o); }
+      return normBook(Object.assign({},b,{id:b.id||uid(),lib:curLib,series:b.series?canonSeries(b.series,curLib):''})); })}; }
   if(replace){ if(!confirm('Remplacer les '+DB.books.length+' livres de cet appareil par les '+inc.books.length+' du fichier ?\n(une sauvegarde automatique est gardée, restaurable dans Réglages)')) return 0; if(!backupNow('import')&&!confirm('Sauvegarde automatique impossible (stockage plein). Remplacer quand même ?')) return 0; DB=inc; }
   else { if(!confirm('Fusionner '+inc.books.length+' livre(s) du fichier avec '+(/\.json$/i.test(name)||/^\s*\{/.test(txt)?'tes bibliothèques':'« '+libName()+' »')+' ?')) return 0; DB=mergeDB(DB,inc); }
   commit(); renderAll(); toast('Import réussi : '+inc.books.length+' livre(s)'); return inc.books.length;
@@ -2089,7 +2110,7 @@ function show(p,o={}){
 function renderBackup(){ const bk=readBackup(); $('bkInfo').textContent=bk?('Sauvegarde automatique : '+fmtDT(bk.at)+' · '+bk.db.books.length+' livre(s) · avant '+bk.reason+'.'):''; $('btnRestore').classList.toggle('hidden',!bk);
   let n=0; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith(KEY)) n+=(localStorage.getItem(k)||'').length; } }catch(e){}
   const old=DB.books.filter(b=>isThumb(b.cover)&&!photoOf(b)).length, nw=DB.books.filter(b=>photoOf(b)).length; let pk=0; for(const k of phWanted(DB)) pk+=(PH.get(k)||'').length;
-  $('storeInfo').textContent='Stockage utilisé sur cet appareil : '+f(n*2/1048576,1)+' Mo'+(old?' (dont '+old+' ancienne'+(old>1?'s':'')+' photo'+(old>1?'s':'')+' de couverture)':'')+' · limite habituelle ≈ 5 Mo.'+(nw?' Photos nettes à part (IndexedDB) : '+nw+' · '+f(pk/1048576,2)+' Mo'+(syncCfg().token?', synchronisées en fichiers séparés.':', sur cet appareil seulement (active la synchro pour les retrouver ailleurs).'):''); }
+  $('storeInfo').textContent='Stockage utilisé sur cet appareil : '+f(n*2/1048576,1)+' Mo'+(old?' (dont '+old+' ancienne'+(old>1?'s':'')+' photo'+(old>1?'s':'')+' de couverture)':'')+' · limite habituelle ≈ 5 Mo.'+(nw?' Photos nettes à part (IndexedDB) : '+nw+' · '+f(pk/1048576,2)+' Mo'+(syncCfg().token?', synchronisées en fichiers séparés.':', sur cet appareil seulement (active la synchro pour les retrouver ailleurs).'):'')+(STORE_PERSIST===true?' Stockage protégé : le navigateur ne l’effacera pas pour faire de la place.':''); }
 /* ---------- Prochaines sorties (module partagé releases.js : Wikipédia + BnF) ---------- */
 const REL_KEY=KEY+'.rel'; let REL=null, relBusy=false, relProg='', serView='ser', relMemo=null;
 function loadRel(){ try{ const o=JSON.parse(localStorage.getItem(REL_KEY)||'null'); REL=MBRel.cleanRel(o); }catch(e){ REL=null; } relMemo=null; }
@@ -2281,7 +2302,7 @@ function clearFilters(){ ['q','fType','fRead','fStatus','fSeries','fFormat'].for
 
 /* ---------- Init ---------- */
 function init(){
-  load(); phInit(); { const l=uiPref('lib','l1'); curLib=LIB_IDS.includes(l)?l:'l1'; }
+  load(); phInit(); setTimeout(storePersist,3000); { const l=uiPref('lib','l1'); curLib=LIB_IDS.includes(l)?l:'l1'; }
   $('f_type').innerHTML=TYPES.map(t=>`<option>${t}</option>`).join('');
   $('fType').innerHTML='<option value="">Type</option>'+TYPES.map(t=>`<option>${t}</option>`).join('');
   $('fsType').innerHTML='<option value="">Tous types</option>'+TYPES.map(t=>`<option>${t}</option>`).join('');

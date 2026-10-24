@@ -39,3 +39,10 @@ Licences des composants embarqués : `vendor/LICENSE-*` (barcode-detector, zxing
 - Séries : tomes manquants résumés (dépliables), pas de re-rendu inutile après une synchro, position de défilement conservée.
 - Recherche dans les résumés ; saisie du nombre total de tomes via une boîte de dialogue ; objectif de lecture « sans les mangas » en option.
 - Tests unitaires (`node tests/pure.test.js`) exécutés en CI.
+
+## Nouveautés 4.3
+
+- Synchro plus légère : seuls le fichier principal et les photos absentes de l’appareil sont téléchargés (plus toutes les photos à chaque synchro) ; aucune nouvelle révision du gist quand rien n’a changé.
+- Import CSV d’un livre existant : les champs absents du CSV et le jour précis de lecture sont conservés.
+- Demande de stockage persistant (le navigateur n’efface pas les données pour faire de la place).
+- Liens d’action plus faciles à toucher sur mobile.
