@@ -2,7 +2,7 @@
 
 Application web (PWA) pour suivre ses livres, mangas et BD : ajout par ISBN ou scan du code-barres, séries de mangas avec tomes manquants, statut Possédé / Liste d'envies, case « Lu » avec le mois de lecture, note, statistiques de lecture par mois.
 
-- Un seul fichier `index.html`, sans build, fonctionne hors ligne (service worker, cache `ma-bibliotheque-v16`).
+- Un seul fichier `index.html`, sans build, fonctionne hors ligne (service worker, cache `ma-bibliotheque-v19`).
 - Données dans le navigateur (localStorage, format versionné), export/import JSON et CSV. Sauvegarde automatique avant « Effacer » / import « Remplacer », restaurable dans Réglages.
 - Recherche ISBN sans clé d'API : **BnF** (ISBN-13 puis ISBN-10), **Sudoc** (bibliothèques universitaires), **Open Library** (API + recherche + description de l'œuvre), Google Books en dernier recours (quota public parfois épuisé, échec ignoré), **AniList** pour compléter les résumés de mangas ; couverture par ISBN (Open Library, BnF, Amazon). Si un tome est trop récent pour les catalogues, l'app reconnaît la série d'après les ISBN de tes tomes (même éditeur) et préremplit le tome suivant. ISBN-10 converti en ISBN-13, doublons signalés.
 - **Recherche par titre / auteur** (mode « Titre » de l'ajout, sans ISBN) : BnF (SRU titre/auteur), Open Library, Google Books et AniList (mangas) interrogés en parallèle, résultats fusionnés et dédupliqués ; toucher un résultat remplit le formulaire.
@@ -46,3 +46,15 @@ Licences des composants embarqués : `vendor/LICENSE-*` (barcode-detector, zxing
 - Import CSV d’un livre existant : les champs absents du CSV et le jour précis de lecture sont conservés.
 - Demande de stockage persistant (le navigateur n’efface pas les données pour faire de la place).
 - Liens d’action plus faciles à toucher sur mobile.
+
+## Nouveautés 4.4
+
+Tout est **facultatif et additif** : un livre sans date, sans nombre de pages ni citation fonctionne partout (stats, tri, « En cours »). Les nouveaux champs (`pages`, `reading`, `readStart`, `endExact`, `reads`, `quotes`, `prio`, `price`, `url`) sont ignorés mais conservés par les anciennes versions.
+
+- **En cours** (accueil) : vraie liste des lectures en cours avec couverture, barre de progression, page actuelle, « + 10 », « + 25 », « Page… » (page et total saisissables), bouton ✓ « Terminer » (note facultative, « Lu en <mois> » en un geste, « Autre mois… », « Lu (avant) »), « Retirer de En cours », Annuler partout. « + Ajouter » ouvre un sélecteur multiple (non lus, envies, filtres, recherche, scan). L’ancienne rangée devient « À lire ensuite ».
+- **Journal de lecture** (fiche) : début et fin facultatifs ; durée et pages/jour calculées seulement quand les jours de début et de fin sont connus. Relire = nouvelle lecture ajoutée à l’historique, sans changer la date de lecture d’origine.
+- **Citations** par livre (page facultative), recherchables depuis la recherche de la bibliothèque.
+- **Stats** : « Lectures par année », « Journal de lecture » (pages lues, durée moyenne, pages/jour, relectures, en cours), auteurs et genres les plus lus.
+- **Sauvegarde** : « Dernier export JSON : il y a N jours » dans Réglages et rappel discret sur l’accueil après 30 jours (« Plus tard » = 14 jours).
+- **Envies** : priorité, prix cible, lien d’achat ; tri « Priorité (envies) » ; quand une envie devient possédée, proposition « Commencer à lire ».
+- Pages préremplies par la recherche ISBN (Open Library / Google Books) ; CSV : colonnes Pages, Commencé le, Priorité, Prix cible, Lien (citations et historique restent dans l’export JSON).

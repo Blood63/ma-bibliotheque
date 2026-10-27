@@ -1,4 +1,4 @@
-const CACHE = 'ma-bibliotheque-v18';
+const CACHE = 'ma-bibliotheque-v19';
 const COVERS = 'ma-bibliotheque-covers-v2'; // v1 (trop large : toutes les images BnF) supprimé à l'activation
 const COVERS_MAX = 400; // au-delà, les plus anciennes entrées sont retirées
 const ASSETS = ['./', './index.html', './releases.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];

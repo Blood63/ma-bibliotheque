@@ -17,7 +17,7 @@ const sandbox = {
   window: {}, navigator: {}, setTimeout, clearTimeout, toast() {}, scheduleSync() {}, curLib: 'l1'
 };
 vm.createContext(sandbox);
-vm.runInContext(code + '\n;globalThis.__T={baseKey,serKey,isbn13,mergeDB,normBook,normGoals,migrate,emptyDB,phKeyOk,phWanted,phPlan,phKeyOfFile,phFile,isThumb,safeImg,setDB:d=>{DB=d;},PH};', sandbox, { filename: 'index.html' });
+vm.runInContext(code + '\n;globalThis.__T={baseKey,serKey,isbn13,mergeDB,normBook,normGoals,migrate,emptyDB,phKeyOk,phWanted,phPlan,phKeyOfFile,phFile,isThumb,safeImg,setDB:d=>{DB=d;},PH,applyStart,applyPage,applyFinish,applyStop,daysBetween,readDays};', sandbox, { filename: 'index.html' });
 const A = sandbox.__T;
 
 let n = 0, fail = 0;
@@ -103,6 +103,52 @@ t('photos : plan de synchro (envoi, pas de doublon, suppression des orphelines, 
 t('objectif : option « sans les mangas » conservée, valeur inconnue retirée', () => {
   assert.strictEqual(A.normGoals({ monthly: 4, count: 'nomanga', updatedAt: 1 }).count, 'nomanga');
   assert.ok(!('count' in A.normGoals({ monthly: 4, count: 'bizarre' }))); assert.ok(!('count' in A.normGoals({ monthly: 4 })));
+});
+
+/* ---- v4.4 : lecture en cours, journal facultatif, citations, envies ---- */
+const nb = o => A.normBook(Object.assign({ id: 'x', title: 'T', author: 'A', type: 'Livre', status: 'possede', addedAt: 1, updatedAt: 1 }, o));
+t('v4.4 : un ancien livre reste strictement identique (aucune clé ajoutée)', () => {
+  const old = { id: 'o', title: 'Vieux', author: 'A', type: 'Livre', status: 'possede', read: true, dateRead: '2024-05-01', rating: 4, addedAt: 5, updatedAt: 9 };
+  const k0 = Object.keys(A.normBook(JSON.parse(JSON.stringify(old)))).sort();
+  for (const k of ['pages', 'reading', 'readStart', 'endExact', 'quotes', 'reads', 'prio', 'price', 'url']) assert.ok(!k0.includes(k), k);
+  const a = A.normBook(JSON.parse(JSON.stringify(old))); assert.deepStrictEqual(A.normBook(JSON.parse(JSON.stringify(a))), a);
+});
+t('v4.4 : normBook garde les champs valides et retire les invalides', () => {
+  const b = nb({ pages: '320', prio: '2', price: '8,5', url: ' https://exemple.org/x ', readStart: '2026-10-01', reading: { since: '2026-10-02', page: 12, at: 5 }, quotes: [{ text: ' Bonjour ', page: 3 }, { text: '  ' }, null] });
+  assert.strictEqual(b.pages, 320); assert.strictEqual(b.prio, 2); assert.strictEqual(b.price, 8.5); assert.strictEqual(b.url, 'https://exemple.org/x');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(b.reading)), { since: '2026-10-02', page: 12, at: 5 }); assert.strictEqual(b.quotes.length, 1); assert.strictEqual(b.quotes[0].text, 'Bonjour'); assert.strictEqual(b.quotes[0].page, 3); assert.ok(b.quotes[0].id);
+  const m = nb({ pages: -4, prio: 7, price: -1, url: 'javascript:alert(1)', readStart: 'hier', reading: 'x', quotes: 'x', reads: 3, endExact: true });
+  for (const k of ['pages', 'prio', 'price', 'url', 'readStart', 'reading', 'quotes', 'reads', 'endExact']) assert.ok(!(k in m), k);
+});
+t('v4.4 : « en cours » disparaît si le livre est lu, sauf relecture ; jour de fin exact seulement si lu et daté', () => {
+  assert.ok(!('reading' in nb({ read: true, dateRead: '2026-01-01', reading: { since: '', page: 1, at: 1 } })));
+  assert.ok(nb({ read: true, dateRead: '2026-01-01', reading: { since: '', page: 1, at: 1, re: 1 } }).reading.re);
+  assert.ok(!('endExact' in nb({ read: false, endExact: true }))); assert.ok(!('endExact' in nb({ read: true, dateRead: '', endExact: true }))); assert.strictEqual(nb({ read: true, dateRead: '2026-01-05', endExact: true }).endExact, true);
+});
+t('v4.4 : démarrer, avancer, terminer (premier passage), sans date ni pages', () => {
+  const b = nb({}); assert.ok(A.applyStart(b, '', 10, false)); assert.ok(!A.applyStart(b, '', 11, false)); assert.strictEqual(b.reading.page, 0);
+  A.applyPage(b, 25, 12); assert.strictEqual(b.reading.page, 25); b.pages = 40; A.applyPage(b, 99, 13); assert.strictEqual(b.reading.page, 40);
+  assert.ok(A.applyFinish(b, '2026-10-27', true, 5, 20)); assert.ok(b.read && b.dateRead === '2026-10-27' && b.endExact === true && b.rating === 5 && !b.reading && !b.readStart);
+  const c = nb({}); A.applyStart(c, '2026-10-01', 1, false); A.applyFinish(c, '2026-10-01', false, 0, 2); assert.ok(c.read && !c.endExact && c.readStart === '2026-10-01'); assert.strictEqual(A.readDays(c), null);
+  const d = nb({}); A.applyStart(d, '', 1, false); A.applyFinish(d, '', false, 0, 2); assert.ok(d.read && d.dateRead === '' && !('readStart' in d) && !d.rating);
+});
+t('v4.4 : durée et rythme seulement quand début et fin exacts existent (minimum 1 jour)', () => {
+  const b = nb({ read: true, dateRead: '2026-10-11', endExact: true, readStart: '2026-10-01' }); assert.strictEqual(A.readDays(b), 10);
+  assert.strictEqual(A.readDays(nb({ read: true, dateRead: '2026-10-01', endExact: true, readStart: '2026-10-01' })), 1);
+  assert.strictEqual(A.readDays(nb({ read: true, dateRead: '2026-10-01', readStart: '2026-09-01' })), null); assert.strictEqual(A.readDays(nb({ read: true, dateRead: '2026-09-01', endExact: true })), null);
+  assert.strictEqual(A.readDays(nb({ read: true, dateRead: '2026-09-01', endExact: true, readStart: '2026-10-01' })), null);
+  assert.strictEqual(A.daysBetween('2026-02-28', '2026-03-01'), 1); assert.strictEqual(A.daysBetween('', '2026-03-01'), null);
+});
+t('v4.4 : relecture = historique, le livre reste « lu » avec sa date', () => {
+  const b = nb({ read: true, dateRead: '2025-03-01' }); assert.ok(!A.applyStart(b, '', 1, false)); assert.ok(A.applyStart(b, '2026-10-01', 2, true));
+  A.applyFinish(b, '2026-10-20', true, 0, 3); assert.ok(b.read && b.dateRead === '2025-03-01' && !b.reading); assert.deepStrictEqual(JSON.parse(JSON.stringify(b.reads)), [{ end: '2026-10-20', start: '2026-10-01', exact: 1 }]);
+  assert.strictEqual(A.normBook(JSON.parse(JSON.stringify(b))).reads.length, 1);
+});
+t('v4.4 : mergeDB garde les nouveaux champs du livre le plus récent', () => {
+  const mk = (o, u) => A.normBook(Object.assign({ id: 'm', title: 'M', author: 'A', type: 'Livre', status: 'possede', addedAt: 1, updatedAt: u }, o));
+  const L = A.emptyDB(), R = A.emptyDB(); L.books = [mk({}, 5)]; R.books = [mk({ reading: { since: '', page: 7, at: 9 }, pages: 100, quotes: [{ id: 'q', text: 'hello', at: 1 }] }, 8)];
+  const m = A.mergeDB(L, R).books[0]; assert.strictEqual(m.reading.page, 7); assert.strictEqual(m.pages, 100); assert.strictEqual(m.quotes[0].text, 'hello');
+  const m2 = A.mergeDB(R, L).books[0]; assert.strictEqual(m2.reading.page, 7);
 });
 
 console.log('\n' + (n - fail) + ' / ' + n + ' tests OK');
