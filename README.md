@@ -1,60 +1,67 @@
 # Ma bibliothèque
 
-Application web (PWA) pour suivre ses livres, mangas et BD : ajout par ISBN ou scan du code-barres, séries de mangas avec tomes manquants, statut Possédé / Liste d'envies, case « Lu » avec le mois de lecture, note, statistiques de lecture par mois.
+Application pour suivre ses livres, ses mangas et ses BD. Elle marche dans le navigateur, y compris hors ligne, et s’installe sur l’écran d’accueil.
 
-- Un seul fichier `index.html`, sans build, fonctionne hors ligne (service worker, cache `ma-bibliotheque-v19`).
-- Données dans le navigateur (localStorage, format versionné), export/import JSON et CSV. Sauvegarde automatique avant « Effacer » / import « Remplacer », restaurable dans Réglages.
-- Recherche ISBN sans clé d'API : **BnF** (ISBN-13 puis ISBN-10), **Sudoc** (bibliothèques universitaires), **Open Library** (API + recherche + description de l'œuvre), Google Books en dernier recours (quota public parfois épuisé, échec ignoré), **AniList** pour compléter les résumés de mangas ; couverture par ISBN (Open Library, BnF, Amazon). Si un tome est trop récent pour les catalogues, l'app reconnaît la série d'après les ISBN de tes tomes (même éditeur) et préremplit le tome suivant. ISBN-10 converti en ISBN-13, doublons signalés.
-- **Recherche par titre / auteur** (mode « Titre » de l'ajout, sans ISBN) : BnF (SRU titre/auteur), Open Library, Google Books et AniList (mangas) interrogés en parallèle, résultats fusionnés et dédupliqués ; toucher un résultat remplit le formulaire.
-- **Résumé (4e de couverture)** : récupéré quand un catalogue le fournit (champ BnF/Sudoc 330, Google Books, description Open Library, AniList pour les mangas), affiché sur la fiche, modifiable dans le formulaire, synchronisé, exporté en CSV ; bouton « Chercher un résumé » sur la fiche quand l'ISBN est connu. Placeholder explicite quand aucun résumé n'est disponible.
-- **Tri de la bibliothèque** : date d'ajout, titre, auteur, série & tome, date de lecture ou note, avec bouton ↑/↓ pour inverser ; choix mémorisé séparément pour chaque bibliothèque et compatible avec recherche et filtres.
-- **Annuler une fusion de séries** : chaque fusion (dialogue « Fusionner… » ou renommage vers une série existante) est journalisée et synchronisée (`mergeLog`, 30 entrées max) ; bandeau « Fusion récente » et « Historique des fusions » dans l'onglet Séries pour la défaire même après rechargement ou sur un autre appareil. Les tomes déplacés/modifiés depuis la fusion ne sont pas touchés ; les anciens clients conservent le journal et les résumés (champs additifs).
-- Séries : noms rapprochés automatiquement (casse, accents, ponctuation, « Édition originale », « Tome N »), suggestions « Même série ? », **Fusionner…**, **Renommer**, « uniformiser » ; les renommages sont synchronisés (un tome ajouté ailleurs avec l'ancien nom rejoint la série).
-- Scan du code-barres : BarcodeDetector natif (Android, macOS) sinon lecteur ZXing WebAssembly embarqué (`vendor/`, iPhone, Firefox, Windows) ; option « Photo du code-barres ».
-- Lecture : on choisit seulement le **mois et l'année** (pas le jour). Dès qu'on coche « Lu » (couverture, liste, fiche, tome, « Tome suivant lu », « Tout lu… », sélection multiple), un sélecteur rapide s'ouvre : « Ce mois-ci » en un geste, mois précédents, autre mois/année ou « Lu (avant) » ; « Annuler » dans le toast. « Lu (avant) » : lu sans date — compte dans le total et le % de lus, pas dans les stats mensuelles ni l'objectif. Choix du mois partout (« Lu quand ? », formulaire, fiche) : année avec ‹ › (ou en glissant), toucher l'année pour la grille des années (jusqu'à 1990), puis grille de 12 mois en un geste ; mois futurs désactivés.
-- **Deux bibliothèques** (par ex. une par personne), chacune avec son nom (renommable), ses livres, séries, statistiques et objectifs. Sélecteur sur l'accueil et pastille dans l'en-tête ; le choix est mémorisé par appareil. Un livre appartient à une bibliothèque : « Copier dans… » crée un exemplaire dans l'autre (lecture, note et notes restent personnelles), le formulaire permet de le déplacer. Carte « Comparer » dans les stats.
-- **Format par livre** : Papier (par défaut) ou Kindle — chaque bibliothèque peut contenir les deux. Choix dans le formulaire, la fiche et la sélection multiple ; petit badge sur les couvertures Kindle, filtre « Format », stats par format.
-- **Prochaines sorties** (onglet Séries → « Prochaines sorties », par bibliothèque) : pour chaque série possédée dont l'histoire n'est pas finie (ou dont il manque encore des tomes), prochains tomes avec date de sortie française, couverture, lien vers la source, mise en avant des tomes **déjà sortis mais pas encore chez toi**, ajout en un geste aux envies, statut de série modifiable (Auto / En cours / Terminée, synchronisé). Carte « Sorties de la semaine » sur l'accueil et pastille sur l'onglet. Sources ouvertes uniquement, via leurs API officielles : **Wikipédia FR** (listes de tomes, CC BY-SA, lien affiché) et **catalogue BnF** (SRU, Licence Ouverte) ; aucun site d'éditeur ni de libraire n'est aspiré. Code partagé : `releases.js`.
-  - Les envies affichent leur date de sortie (« Sort le 23 sept. ») et cette date est tenue à jour si le tome est reporté. Bouton « 📅 Ajouter les sorties à mon agenda » : fichier `.ics` des sorties datées à venir (rappel le jour même à 9 h ; réimporter met à jour les mêmes événements).
-  - Sur chaque carte de série : « 📅 Prochain : tome N · date » (ou « déjà sorti ») qui ouvre la série dans Prochaines sorties ; pour une série terminée sans total connu, « Série terminée en N tomes : l’indiquer comme total » (en un geste, avec Annuler).
-  - Bibliothèque filtrée sur « Liste d’envies » : bouton « 📋 Partager la liste » (partage du téléphone ou copie), avec dates de sortie et ISBN — pratique en librairie.
-  - Actualisation : bouton « Actualiser », et automatiquement à la première ouverture après le mardi 6 h (heure de Paris).
-  - Optionnel, actualisation hebdomadaire sans ouvrir l'app : l'action GitHub `.github/workflows/releases.yml` tourne le mardi vers 6 h 20 (Paris). Elle lit la liste des séries dans le gist secret de synchronisation et y écrit `ma-bibliotheque-releases.json` (rien de personnel dans ce dépôt public ; le journal n'affiche que des nombres). Pour l'activer : créer un jeton GitHub *classic* avec **uniquement** la portée `gist`, puis l'ajouter dans *Settings → Secrets and variables → Actions → New repository secret* sous le nom `GIST_TOKEN`. Sans ce secret, l'action ne fait rien (sans erreur).
-  - **Enrichissement Apify/web (optionnel, serveur uniquement)** : si le secret de dépôt `APIFY_TOKEN` est présent, le même contrôle du mardi interroge en plus l'acteur Apify `apify/rag-web-browser` (API REST) pour les **seules** séries encore sans date après Wikipédia/BnF (requête « <série> prochain tome date de sortie », 6 séries max par passage par défaut, appels en série). Une date plausible (jour, ou mois+année) rattachée au prochain tome est enregistrée avec la provenance `source: 'Apify/web'` et son URL source ; l'app l'affiche avec la mention « Apify/web · à vérifier ». **Sans `APIFY_TOKEN`, cette étape est silencieusement ignorée et le comportement est strictement inchangé** ; tout échec ou timeout Apify est ignoré. Pour l'activer : dans Apify, *Settings → API & Integrations* (console Apify → *Settings* → *Integrations*), copie ton jeton API personnel, puis sur GitHub (dépôt `ma-bibliotheque`) *Settings → Secrets and variables → Actions → New repository secret* : nom `APIFY_TOKEN`. Le secret `GIST_TOKEN` reste nécessaire pour ce contrôle. **Ne jamais mettre de jeton Apify dans l'application (PWA), le code client ou le dépôt** : le navigateur ne contient aucun jeton et n'appelle pas Apify ; il affiche seulement la provenance. Le champ ajouté (`vols[].src`) est additif : les anciens clients le conservent/ignorent sans perte.
-  - Pour une série sans date, la carte propose aussi un lien manuel « Rechercher sur le web ↗ » (simple URL de recherche, sans jeton).
-  - *Piste future, volontairement non branchée* : enrichir ISBN/titre/résumés via Apify n'est pas implémenté. Les catalogues ouverts (BnF, Sudoc, Open Library, Google Books, AniList) couvrent ce besoin côté application, et un appel Apify par livre poserait les mêmes questions de jeton (serveur uniquement), de coût et de fiabilité ; à ne faire, le cas échéant, que dans la tâche serveur hebdomadaire, de façon optionnelle comme ci-dessus.
-- Objectif de lecture (par bibliothèque) : 5 par mois par défaut (anneau sur l'accueil), annuel = mensuel × 12 sauf réglage contraire (⚙️ Réglages).
-- Suppression immédiate avec « Annuler » (7 s), aussi en sélection multiple.
-- Synchronisation optionnelle entre appareils via un gist GitHub secret (`ma-bibliotheque-data.json`), même jeton que Suivi Montagne (le gist de Suivi Montagne n'est jamais modifié). Données v3 compatibles avec les anciennes versions : un ancien client conserve les bibliothèques et les formats ; ses nouveaux livres vont dans la bibliothèque 1.
+Adresse : https://blood63.github.io/ma-bibliotheque/
 
-App : https://blood63.github.io/ma-bibliotheque/
+## Première utilisation
 
-Licences des composants embarqués : `vendor/LICENSE-*` (barcode-detector, zxing-wasm — MIT ; moteur ZXing-C++ — Apache-2.0).
+Ouvre le lien. La bibliothèque est vide : ajoute un livre avec le bouton **+** (code-barres, ISBN, titre, ou saisie à la main).
 
-## Nouveautés 4.2
+Tes livres restent **dans ce navigateur**. Un autre téléphone, ou une autre personne, ne les voit pas. Rien n’est envoyé à un serveur, sauf si tu actives toi-même la synchro ci-dessous.
 
-- Photos de couverture prises avec l’appareil : miniature légère dans les données + photo complète stockée en IndexedDB et synchronisée dans un fichier séparé du gist (`cover-<clé>.txt`). Les anciennes versions continuent d’afficher la miniature.
-- Sauvegarde automatique déplacée en IndexedDB (ne double plus l’espace localStorage).
-- Service worker : filtre des couvertures corrigé, cache des couvertures limité à ~400 entrées.
-- Séries : tomes manquants résumés (dépliables), pas de re-rendu inutile après une synchro, position de défilement conservée.
-- Recherche dans les résumés ; saisie du nombre total de tomes via une boîte de dialogue ; objectif de lecture « sans les mangas » en option.
-- Tests unitaires (`node tests/pure.test.js`) exécutés en CI.
+Deux bibliothèques (par exemple une par personne) sont déjà prévues. Tu peux les renommer.
 
-## Nouveautés 4.3
+## Ne pas perdre ses livres
 
-- Synchro plus légère : seuls le fichier principal et les photos absentes de l’appareil sont téléchargés (plus toutes les photos à chaque synchro) ; aucune nouvelle révision du gist quand rien n’a changé.
-- Import CSV d’un livre existant : les champs absents du CSV et le jour précis de lecture sont conservés.
-- Demande de stockage persistant (le navigateur n’efface pas les données pour faire de la place).
-- Liens d’action plus faciles à toucher sur mobile.
+Dans **Réglages** (engrenage) :
 
-## Nouveautés 4.4
+- **Exporter JSON** : une copie complète (livres, notes, photos). Garde ce fichier.
+- **Importer** : pour retrouver cette copie sur un autre appareil, ou après un changement de navigateur. Par défaut les livres sont fusionnés. « Remplacer » écrase la liste de cet appareil (une sauvegarde automatique est gardée juste avant).
 
-Tout est **facultatif et additif** : un livre sans date, sans nombre de pages ni citation fonctionne partout (stats, tri, « En cours »). Les nouveaux champs (`pages`, `reading`, `readStart`, `endExact`, `reads`, `quotes`, `prio`, `price`, `url`) sont ignorés mais conservés par les anciennes versions.
+Un rappel apparaît si aucun export n’a été fait depuis un mois.
 
-- **En cours** (accueil) : vraie liste des lectures en cours avec couverture, barre de progression, page actuelle, « + 10 », « + 25 », « Page… » (page et total saisissables), bouton ✓ « Terminer » (note facultative, « Lu en <mois> » en un geste, « Autre mois… », « Lu (avant) »), « Retirer de En cours », Annuler partout. « + Ajouter » ouvre un sélecteur multiple (non lus, envies, filtres, recherche, scan). L’ancienne rangée devient « À lire ensuite ».
-- **Journal de lecture** (fiche) : début et fin facultatifs ; durée et pages/jour calculées seulement quand les jours de début et de fin sont connus. Relire = nouvelle lecture ajoutée à l’historique, sans changer la date de lecture d’origine.
-- **Citations** par livre (page facultative), recherchables depuis la recherche de la bibliothèque.
-- **Stats** : « Lectures par année », « Journal de lecture » (pages lues, durée moyenne, pages/jour, relectures, en cours), auteurs et genres les plus lus.
-- **Sauvegarde** : « Dernier export JSON : il y a N jours » dans Réglages et rappel discret sur l’accueil après 30 jours (« Plus tard » = 14 jours).
-- **Envies** : priorité, prix cible, lien d’achat ; tri « Priorité (envies) » ; quand une envie devient possédée, proposition « Commencer à lire ».
-- Pages préremplies par la recherche ISBN (Open Library / Google Books) ; CSV : colonnes Pages, Commencé le, Priorité, Prix cible, Lien (citations et historique restent dans l’export JSON).
+## Synchro entre tes appareils (facultative)
+
+Tu n’en as pas besoin pour utiliser l’application.
+
+Si tu veux la même bibliothèque sur plusieurs appareils :
+
+1. Sur GitHub, crée un jeton **classique** avec **uniquement** la case **gist** : [créer le jeton](https://github.com/settings/tokens/new?scopes=gist&description=Ma%20biblioth%C3%A8que). Ne coche rien d’autre.
+2. Dans l’application : Réglages → colle le jeton → **Enregistrer et synchroniser**. Le premier appareil crée un gist privé.
+3. Sur les autres appareils, colle **le même jeton**.
+
+Le jeton reste sur l’appareil. Il n’est pas mis dans le fichier JSON. Les étapes détaillées (jeton classique ou fine-grained) sont dans les réglages. Pour le retirer : « Oublier le jeton », puis révoque-le sur GitHub si tu ne t’en sers plus.
+
+## Ce que l’application sait faire
+
+Ajout par ISBN ou scan, séries et tomes manquants, liste d’envies, « lu » au mois, lectures en cours, notes, deux bibliothèques, papier ou Kindle, prochaines sorties (Wikipédia et BnF). Les statistiques détaillées sont dans l’onglet Stats.
+
+## Application Android (Google Play)
+
+Le cœur de l’application est gratuit. Sur le **site**, les statistiques le sont aussi.
+
+Dans l’**application Play** (emballage Trusted Web Activity), les statistiques détaillées sont proposées avec un abonnement d’environ 1 € par mois, payé à Google Play. Le prix exact est celui du Play Store. Identifiant du produit à créer : `premium_mensuel`.
+
+Fichiers préparés dans le dépôt :
+
+- `twa/twa-manifest.json` — projet Bubblewrap, facturation Play activée. Le nom de paquet est `io.github.blood63.mabibliotheque` (à ne plus changer après la première publication).
+- `.well-known/assetlinks.json` — lien entre le site et l’application. L’empreinte SHA-256 est un **placeholder** (que des zéros) : à remplacer par celle de ta clé de signature.
+- `billing/worker.js` — petit serveur qui confirme l’abonnement auprès de Google et accuse réception. Sans lui, Play rembourse un achat non confirmé au bout de 3 jours. L’adresse du serveur se met dans `BILLING_API` dans `index.html` (vide pour l’instant).
+- `confidentialite.html` — page à indiquer dans la fiche Play.
+
+Ce dépôt est un site de projet (`blood63.github.io/ma-bibliotheque/`). Android cherche `assetlinks.json` à la **racine du domaine** (`https://blood63.github.io/.well-known/assetlinks.json`), pas dans le sous-dossier. Il faut soit copier le fichier dans un dépôt `blood63.github.io`, soit utiliser un nom de domaine à toi pointé sur ce site.
+
+La checklist Play Console (compte développeur, paiement, abonnement, clé, fiche) est dans la description de la pull request : une partie ne peut pas être faite depuis le code.
+
+## Confidentialité
+
+[confidentialite.html](confidentialite.html)
+
+## Pour modifier le code
+
+Un seul fichier `index.html`, plus `releases.js` et `sw.js`. Pas d’étape de build. Tests : `node tests/pure.test.js`.
+
+Les clés de stockage (`maBibliotheque.v1` et la suite) ne changent pas d’une version à l’autre : une bibliothèque déjà présente sur un appareil est conservée.
+
+Licences des composants embarqués : `vendor/LICENSE-*`.

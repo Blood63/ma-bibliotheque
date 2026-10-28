@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#070d22">
+<meta name="description" content="Suivre ses livres, mangas et BD, hors ligne. Les données restent sur l’appareil.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -261,6 +262,7 @@ body.selecting .bk .qlu{display:none}
 nav#tabs{position:fixed;left:0;right:0;bottom:0;z-index:12;height:calc(var(--tabH) + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom);display:grid;grid-template-columns:1fr 1fr 84px 1fr 1fr;align-items:center;
   background:linear-gradient(180deg,rgba(12,20,48,.82),rgba(6,11,29,.95));backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border-top:1px solid rgba(217,180,90,.18);box-shadow:0 -10px 30px rgba(0,0,0,.4)}
 nav#tabs .tab{position:relative;z-index:1;height:100%;background:none;border:0;color:var(--mut2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;letter-spacing:.3px;transition:color .25s}
+nav#tabs .tab.locked::after{content:"★";position:absolute;top:6px;right:10px;font-size:9px;color:var(--gold2);line-height:1}
 nav#tabs .tab svg.i{width:23px;height:23px;transition:transform .35s var(--spring)}
 nav#tabs .tab.on{color:var(--gold2)}
 nav#tabs .tab.on svg.i{transform:translateY(-1px) scale(1.08)}
@@ -670,6 +672,8 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 
 <!-- STATS -->
 <section class="page" id="p-stats">
+  <div id="premiumWall" class="card hidden"></div>
+  <div id="statsBody">
   <div class="card st" style="--i:0">
     <div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Lectures par mois</h2><select class="pill" id="stPeriod" aria-label="Période"></select></div>
     <div class="kpis" id="stKpi"></div>
@@ -686,6 +690,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
   <div class="card st" style="--i:3"><h3>Papier ou Kindle</h3><div class="scroll" id="tblFormat"></div></div>
   <div class="card st" style="--i:4"><h3>Bibliothèque</h3><div class="kpis" id="stTot"></div><div class="scroll" id="tblType" style="margin-top:12px"></div></div>
   <div class="card st" style="--i:5"><h3 id="cmpT">Comparer</h3><div class="scroll" id="tblCmp"></div></div>
+  </div>
 </section>
 <section class="page" id="p-data">
   <div class="card st" style="--i:0" id="libCard">
@@ -705,7 +710,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
   </div>
   <div class="card st" style="--i:1">
     <h2>Sauvegarde</h2>
-    <p class="small mut">Les données restent sur cet appareil (stockage local du navigateur) et, si tu l’actives, dans ton gist GitHub secret. Exporte de temps en temps un fichier JSON.</p>
+    <p class="small mut">Les données restent sur cet appareil (stockage local du navigateur). La synchro GitHub est facultative, avec ton propre jeton. Exporte de temps en temps un fichier JSON : c’est la copie de secours.</p>
     <div class="row">
       <button class="btn" id="btnExpJson">Exporter JSON</button>
       <button class="btn sec" id="btnExpCsv">Exporter CSV (livres)</button>
@@ -719,36 +724,44 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
     <details class="small" style="margin-top:10px"><summary>Format CSV accepté</summary>
       <p class="mut">Séparateur « ; » ou « , ». Colonnes reconnues (ligne d’en-tête obligatoire, ordre libre) : <code>Type ; Titre ; Auteur ; Série ; Tome ; ISBN ; Genre ; Statut ; Lu ; Date lu ; Note ; Notes ; Couverture ; ID</code>. Type = Livre, Manga, BD ou Autre ; Statut = Possédé ou Liste d’envies ; Lu = oui/non ; Date lu = MM/AAAA (le mois de lecture ; JJ/MM/AAAA et AAAA-MM-JJ sont aussi acceptés). Avec la colonne ID (présente dans l’export), les livres existants sont mis à jour au lieu d’être dupliqués.</p></details>
   </div>
+  <div class="card st" style="--i:2" id="premiumCard">
+    <h2>Premium</h2>
+    <p class="small mut" id="premiumInfo" style="margin-top:0"></p>
+    <div class="row" id="premiumActions"></div>
+    <p class="small mut" id="premiumNote" style="margin:8px 0 0"></p>
+  </div>
   <div class="card st" style="--i:2" id="syncCard">
-    <h2>Synchronisation (GitHub Gist privé)</h2>
-    <p class="small mut" style="margin-top:0">Partage la bibliothèque entre tes téléphones, ta tablette et tes ordinateurs via un gist secret sur ton compte GitHub. Fusion automatique : rien n’est écrasé, les suppressions sont reportées. Le même jeton que pour <b>Suivi Montagne</b> fonctionne (fichier séparé <code>ma-bibliotheque-data.json</code>).</p>
+    <h2>Synchronisation (facultative)</h2>
+    <p class="small mut" style="margin-top:0">Sans jeton, tout reste sur cet appareil. Avec un jeton GitHub à toi, la bibliothèque se partage entre tes téléphones, ta tablette et tes ordinateurs, dans un gist <b>privé</b> de ton compte. Rien n’est écrasé : la modification la plus récente gagne, et une suppression est reportée partout.</p>
     <div id="syncLast" class="small"></div>
     <div id="syncTokenState" class="small mut"></div>
     <div id="syncGist" class="small mut"></div>
     <div id="syncMsg" class="small mut" style="margin:6px 0"></div>
-    <button class="btn sec sm hidden" id="btnTokReuse" type="button" style="margin-bottom:8px">🔑 Utiliser le jeton déjà enregistré dans Suivi Montagne</button>
-    <label for="syncToken">Jeton GitHub (scope « gist » uniquement)</label>
+    <p id="syncOther" class="small hidden" style="margin:0 0 8px">Un jeton est déjà enregistré sur ce site pour une autre application. Tu peux le réutiliser : il ne touche pas les autres gists. Un fichier à part, <code>ma-bibliotheque-data.json</code>, est créé dans un gist privé.</p>
+    <button class="btn sec sm hidden" id="btnTokReuse" type="button" style="margin-bottom:8px">🔑 Utiliser le jeton déjà enregistré sur ce site</button>
+    <label for="syncToken">Jeton GitHub (uniquement le droit « gist »)</label>
     <div class="row"><input id="syncToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_… ou github_pat_…" style="flex:1"><button class="btn sec sm" id="btnTokShow" type="button" aria-label="Afficher le jeton">👁️</button></div>
     <div class="row" style="margin-top:10px">
       <button class="btn" id="btnTokSave">Enregistrer et synchroniser</button>
       <button class="btn sec" id="btnSync">Synchroniser</button>
     </div>
     <label class="switch" style="margin-top:12px"><span>Synchroniser automatiquement <span class="small mut">(ouverture, retour dans l’app, après chaque modification)</span></span><input type="checkbox" id="syncAuto"></label>
-    <div class="row" style="margin-top:8px"><button class="btn bad sm" id="btnTokForget">Oublier le jeton</button></div>
-    <details style="margin-top:10px" class="small"><summary>Comment ça marche / créer le jeton</summary>
-      <p><b>Tu as déjà un jeton pour Suivi Montagne ?</b> Réutilise-le : colle-le ici (ou touche le bouton 🔑 s’il apparaît) puis « Enregistrer et synchroniser ». Un second gist secret, <code>ma-bibliotheque-data.json</code>, est créé à côté de celui de Suivi Montagne ; les deux apps ne se mélangent pas.</p>
-      <p><b>Sinon, créer un jeton (2 minutes) :</b></p>
+    <div class="row" style="margin-top:8px"><button class="btn bad sm" id="btnTokForget">Oublier le jeton sur cet appareil</button></div>
+    <details id="syncHelp" style="margin-top:10px" class="small"><summary>Créer un jeton avec le minimum de droits</summary>
+      <p>Le jeton sert seulement à lire et écrire <b>tes gists</b>. Il ne donne pas accès à tes dépôts, à tes mails, ni à ton mot de passe. Tu n’as pas à coller l’adresse d’un gist : le premier appareil crée le gist privé, les autres le retrouvent avec le même jeton.</p>
+      <p><b>Jeton classique (le plus simple) :</b></p>
       <ol style="padding-left:18px;margin:8px 0">
-        <li>Ouvre ce lien en étant connecté à GitHub : <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Ma%20biblioth%C3%A8que" target="_blank" rel="noopener">créer un jeton « Ma bibliothèque »</a>.</li>
-        <li>La note et la case <b>gist</b> sont déjà remplies. <b>Ne coche rien d’autre.</b></li>
-        <li><b>Expiration</b> : « No expiration » (ou 1 an ; il faudra alors refaire un jeton à l’échéance).</li>
-        <li>Tout en bas, clique sur le bouton vert <b>Generate token</b>.</li>
-        <li>Copie le jeton (il commence par <code>ghp_</code>). GitHub ne l’affiche qu’une fois : garde-le dans ton gestionnaire de mots de passe.</li>
-        <li>Colle-le ici puis touche <b>Enregistrer et synchroniser</b>. Le premier appareil crée le gist secret.</li>
-        <li>Sur chacun de tes autres appareils (2 téléphones, tablette, 2 ordinateurs) : ouvre l’app → ⚙️ Réglages → colle <b>le même jeton</b> → Enregistrer et synchroniser. Le gist est retrouvé et les données fusionnées.</li>
+        <li>Connecte-toi à GitHub, puis ouvre <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Ma%20biblioth%C3%A8que" target="_blank" rel="noopener">créer un jeton « Ma bibliothèque »</a>.</li>
+        <li>La note est déjà remplie. La case <b>gist</b> est déjà cochée. <b>Ne coche rien d’autre</b> (surtout pas repo).</li>
+        <li>Expiration : « No expiration », ou 1 an si tu préfères le renouveler.</li>
+        <li>Tout en bas, bouton vert <b>Generate token</b>.</li>
+        <li>Copie le jeton (il commence par <code>ghp_</code>). GitHub ne le montre qu’une fois.</li>
+        <li>Colle-le ici, puis <b>Enregistrer et synchroniser</b>.</li>
+        <li>Sur chaque autre appareil : Réglages, le même jeton, Enregistrer et synchroniser.</li>
       </ol>
-      <p class="mut"><b>Fusion :</b> chaque livre a un identifiant ; si le même livre a été modifié sur deux appareils, la modification la plus récente gagne. Une suppression est mémorisée et reportée partout. Hors ligne, tout fonctionne : la synchro se fera dès le retour d’internet.</p>
-      <p class="mut"><b>Sécurité :</b> le jeton reste sur l’appareil et n’est envoyé qu’à api.github.com. Il ne donne accès qu’à tes gists et n’est jamais inclus dans les exports. Pour le révoquer : github.com → Settings → Developer settings → Personal access tokens. Un jeton « fine-grained » marche aussi s’il a uniquement la permission « Gists : Read and write ».</p>
+      <p><b>Jeton fine-grained (autre forme) :</b> GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate. Resource owner : toi. Repository access : <b>aucun dépôt</b> n’est nécessaire. Dans Account permissions, mets seulement <b>Gists : Read and write</b>. Le jeton commence par <code>github_pat_</code>.</p>
+      <p class="mut"><b>Sécurité :</b> le jeton reste dans ce navigateur et n’est envoyé qu’à api.github.com. Il n’est pas inclus dans les exports JSON. Pour le retirer : bouton « Oublier le jeton », puis GitHub → Settings → Developer settings → Personal access tokens → révoquer.</p>
+      <p class="mut"><b>Hors ligne :</b> l’application continue de marcher. La synchro reprend dès qu’il y a internet.</p>
     </details>
   </div>
   <div class="card small st" style="--i:3">
@@ -759,8 +772,8 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
       <p class="mut">Choisis le type Manga, indique la série (ex. One Piece) et l’auteur, coche « Ajouter plusieurs tomes d’un coup » puis tomes 1 à 20. Les tomes déjà présents sont ignorés. Dans Séries, touche un tome pour le marquer lu et fixe le nombre total de tomes pour voir ceux qui manquent.</p></details>
     <details><summary>Lectures par mois</summary>
       <p class="mut">Le bouton ✓ compte la lecture dans le mois en cours ; tu peux choisir un autre mois (et l’année) dans la fiche du livre — pas besoin du jour exact. Pour les livres lus il y a longtemps, choisis « Lu (avant) » : ils comptent dans le total et le % de lus, mais pas dans les statistiques mensuelles ni l’objectif. Pour en marquer plusieurs d’un coup : Bibliothèque → bouton de sélection, ou Séries → « Tout Lu (avant) ».</p></details>
-    <details><summary>Prochaines sorties et Apify (optionnel)</summary>
-      <p class="mut">Voir l’aide « Sources et Apify » en haut de Séries → Prochaines sorties. En résumé : l’enrichissement Apify/web est optionnel, ne tourne que dans le contrôle GitHub du mardi (secret <code>APIFY_TOKEN</code> du dépôt, jamais dans l’application), et sans ce secret le comportement est inchangé. Le secret <code>GIST_TOKEN</code> peut toujours être nécessaire pour ce contrôle automatique.</p></details>
+    <details><summary>Prochaines sorties</summary>
+      <p class="mut">Dans Séries → Prochaines sorties, l’application interroge Wikipédia et la BnF quand tu appuies sur Actualiser, et toute seule le mardi si tu ouvres l’app. Aucun jeton n’est nécessaire. Un contrôle automatique hébergé sur GitHub (et l’enrichissement Apify) ne concerne que la personne qui publie le dépôt, pas les visiteurs du site.</p></details>
     <details><summary>Installer sur l’écran d’accueil</summary>
       <p class="mut">Android/Chrome : menu ⋮ → « Ajouter à l’écran d’accueil » / « Installer l’application ». iPhone/iPad : bouton Partager → « Sur l’écran d’accueil ». Ordinateur : icône d’installation dans la barre d’adresse. L’app fonctionne ensuite hors ligne.</p></details>
   </div>
@@ -772,6 +785,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
   </div>
   <p class="small mut" style="text-align:center" id="storeInfo"></p>
   <p class="small mut" style="text-align:center" id="verInfo"></p>
+  <p class="small mut" style="text-align:center"><a href="confidentialite.html">Confidentialité</a></p>
 </section>
 </main>
 
@@ -916,9 +930,13 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 <script src="releases.js"></script>
 <script>
 'use strict';
+// Données : la bibliothèque vit sur cet appareil (KEY, IndexedDB pour les photos).
+// La synchro gist est un ajout facultatif, à côté. Un futur serveur (ex. Supabase) peut
+// remplacer cet ajout sans changer KEY ni le format des livres. Le droit Premium est une
+// clé à part (PREMIUM_KEY) : il n'entre pas dans l'export de la bibliothèque.
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '4.4.0';
+const APP_VERSION = '4.5.0';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -1018,6 +1036,29 @@ function normLibs(x){ const o=(x&&typeof x==='object')?Object.assign({},x):{}; c
     v.name=nm||LIB_DEFAULT[id]; if(typeof v.nameAt!=='number') v.nameAt=0; if(id!=='l1') v.goals=normGoals(v.goals); o[id]=v; }
   return o; } // les autres clés éventuelles (versions futures) sont conservées
 function emptyDB(){ return {version:DATA_VERSION, books:[], series:{}, goals:defaultGoals(), libs:defaultLibs(), tomb:{b:{}}, mergeLog:[]}; }
+// Premium : décision pure (testée). Le site web laisse l'accès. L'app Play le demande,
+// sauf si l'appareil avait déjà une bibliothèque (propriétaire) ou un abonnement confirmé.
+const PREMIUM_KEY = KEY+'.premium';
+const PREMIUM_SKU = 'premium_mensuel';
+// URL du worker billing/worker.js après déploiement. Vide = pas encore de confirmation côté serveur.
+const BILLING_API = '';
+function premiumAccess(s){
+  s=s||{};
+  if(s.owner) return true;
+  if(!s.play) return true;
+  if(s.active) return true;
+  const now=typeof s.now==='number'?s.now:0;
+  return typeof s.graceUntil==='number' && s.graceUntil>now;
+}
+function grantOwnerPremiumIfExisting(){
+  let cur=null; try{ cur=JSON.parse(localStorage.getItem(PREMIUM_KEY)||'null'); }catch(e){}
+  if(cur&&cur.owner) return;
+  let books=0, token='';
+  try{ const db=JSON.parse(localStorage.getItem(KEY)||'null'); if(db&&Array.isArray(db.books)) books=db.books.length; }catch(e){}
+  try{ const sy=JSON.parse(localStorage.getItem(KEY+'.sync')||'null'); if(sy&&typeof sy.token==='string'&&sy.token) token=sy.token; }catch(e){}
+  try{ const ot=JSON.parse(localStorage.getItem('suiviMontagne.v1.sync')||'null'); if(ot&&typeof ot.token==='string'&&ot.token) token=ot.token; }catch(e){}
+  if(books>0||token){ const o=(cur&&typeof cur==='object')?cur:{}; o.owner=true; o.ownerAt=Date.now(); o.ownerSource='existant'; localStorage.setItem(PREMIUM_KEY, JSON.stringify(o)); }
+}
 function normBook(b){
   const o=Object.assign({},b);
   o.id = typeof o.id==='string'&&o.id? o.id : uid();
@@ -1657,6 +1698,7 @@ function renderSync(){ const c=syncCfg();
   $('syncAuto').checked=!!c.auto;
   $('syncGist').innerHTML=c.gistId?('Gist : <a href="https://gist.github.com/'+encodeURIComponent(c.gistId)+'" target="_blank" rel="noopener">'+esc(c.gistId.slice(0,10))+'…</a>'):'';
   const ot=otherToken(); $('btnTokReuse').classList.toggle('hidden',!ot||ot===c.token);
+  const other=$('syncOther'); if(other) other.classList.toggle('hidden',!ot||ot===c.token);
   renderDot();
 }
 function initSync(){
@@ -1675,6 +1717,7 @@ function initSync(){
   let lastDay=todayISO(); const dayCheck=()=>{ if(todayISO()!==lastDay){ lastDay=todayISO(); renderAll(); $('hEyebrow').textContent=eyebrowFor(curPage); } };
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') dayCheck(); }); setInterval(dayCheck,60000);
   renderSync();
+  const help=$('syncHelp'); if(help&&!syncCfg().token) help.open=true;
   const c=syncCfg(); if(c.token&&c.auto) syncNow({silent:true}).then(renderSync);
 }
 
@@ -1901,8 +1944,9 @@ function renderHome(){
   h+=`<div class="kstrip st" style="--i:1">${[['possédés',own.length,''],['lus',rd,''],['% lus',own.length?Math.round(ownR/own.length*100):0,' %'],['envies',LB().length-own.length,'']].map(([k,v,s])=>`<div class="k"><b data-count="${v}" data-suf="${s}">${v}${s}</b><small>${k}</small></div>`).join('')}</div>`;
   h+=bkBannerHTML();
   if(!LB().length){
-    h+=`<div class="empty st" style="--i:2;margin-top:18px">${SVG_EMPTY}<h3>Ta bibliothèque t’attend</h3><p>Scanne le code-barres d’un livre, tape son ISBN, ou ajoute toute une série de mangas d’un coup.</p>
-      <div class="row" style="justify-content:center"><button class="btn" id="btnHomeScan">${ico('cam')}Scanner un ISBN</button><button class="btn sec" id="btnHomeAdd">${ico('plus')}Ajouter</button></div></div>`;
+    h+=`<div class="empty st" style="--i:2;margin-top:18px">${SVG_EMPTY}<h3>Ta bibliothèque est vide</h3><p>Ajoute un livre avec le code-barres, l’ISBN ou à la main. Tout reste sur cet appareil : personne d’autre ne voit ta liste. Tu pourras en faire une copie JSON dans les réglages.</p>
+      <div class="row" style="justify-content:center"><button class="btn" id="btnHomeScan">${ico('cam')}Scanner un ISBN</button><button class="btn sec" id="btnHomeAdd">${ico('plus')}Ajouter</button></div>
+      <p class="small mut" style="margin-top:12px"><button type="button" data-go="data" style="background:none;border:0;color:var(--gold2);text-decoration:underline;font:inherit;padding:6px">Réglages</button> pour importer une sauvegarde, ou pour une synchro entre tes appareils (facultative).</p></div>`;
   } else {
     const nu=nextUp(), lr=LB().filter(b=>b.read).sort((a,b)=>(b.dateRead||'').localeCompare(a.dateRead||'')||b.updatedAt-a.updatedAt).slice(0,14);
     const gs=seriesGroups().sort((a,b)=>Math.max(...b.books.map(x=>x.updatedAt))-Math.max(...a.books.map(x=>x.updatedAt))).slice(0,10);
@@ -2160,11 +2204,113 @@ function stackChart(el,labels,stacks,hi,goal){
   el.innerHTML=g;
 }
 
+/* ---------- Premium (Google Play, dans l’app Android seulement) ----------
+   Sur le site web, les stats restent ouvertes : Play Billing n’existe pas dans un navigateur,
+   et le propriétaire continue comme avant. Dans l’app Play, listPurchases + le worker
+   (BILLING_API) confirment l’abonnement. Sans worker, un achat vu par Play ne dure que 48 h :
+   Google rembourse un achat non accusé réception au bout de 3 jours. */
+let playApp=false, playActive=false, premiumPrice='';
+function readPremium(){ try{ const o=JSON.parse(localStorage.getItem(PREMIUM_KEY)||'null'); return o&&typeof o==='object'?o:{}; }catch(e){ return {}; } }
+function writePremium(p){ try{ localStorage.setItem(PREMIUM_KEY, JSON.stringify(p)); }catch(e){} }
+function detectPlayApp(){
+  try{
+    if(sessionStorage.getItem('mb.play')==='1') return true;
+    if((document.referrer||'').startsWith('android-app://')){ sessionStorage.setItem('mb.play','1'); return true; }
+  }catch(e){}
+  return false;
+}
+function isPremium(){ const p=readPremium();
+  return premiumAccess({ owner:!!p.owner, play:playApp, active:playActive && p.source==='play', graceUntil:p.graceUntil||0, now:Date.now() }); }
+async function playService(){
+  if(typeof window.getDigitalGoodsService!=='function') return null;
+  try{ const s=await window.getDigitalGoodsService('https://play.google.com/billing'); return s||null; }catch(e){ return null; }
+}
+function premiumPriceOf(item){
+  if(!item||!item.price||item.price.value==null) return '';
+  const cur=item.price.currency||'EUR';
+  try{ return new Intl.NumberFormat('fr-FR',{style:'currency',currency:cur}).format(+item.price.value); }catch(e){ return String(item.price.value)+' '+cur; }
+}
+async function confirmPlayToken(token){
+  if(!token) return false;
+  const p=readPremium();
+  if(BILLING_API){
+    let j=null, r=null;
+    try{ r=await fetch(BILLING_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,productId:PREMIUM_SKU})}); j=await r.json(); }
+    catch(e){ return false; }
+    if(!r||!r.ok) return false;
+    if(j&&j.active){ p.token=token; p.source='play'; p.graceUntil=Date.now()+7*864e5; p.until=j.until||''; writePremium(p); playActive=true; return true; }
+    if(p.source==='play'||p.source==='provisoire'){ delete p.graceUntil; p.source=''; writePremium(p); }
+    playActive=false; return false;
+  }
+  p.token=token; p.source='provisoire'; p.graceUntil=Date.now()+48*3600e3; writePremium(p); playActive=false; return true;
+}
+async function refreshPremium(){
+  playApp=detectPlayApp();
+  const service=await playService();
+  if(service){ playApp=true; try{ sessionStorage.setItem('mb.play','1'); }catch(e){}
+    try{ const details=await service.getDetails([PREMIUM_SKU]); const hit=(details||[]).find(x=>x&&x.itemId===PREMIUM_SKU); const lbl=premiumPriceOf(hit); if(lbl) premiumPrice=lbl+' / mois'; }catch(e){}
+    try{
+      const purchases=await service.listPurchases();
+      const hit=(purchases||[]).find(x=>x&&x.itemId===PREMIUM_SKU);
+      if(!hit){ playActive=false; const p=readPremium(); if(p.source==='play'||p.source==='provisoire'){ delete p.graceUntil; p.source=''; writePremium(p); } }
+      else await confirmPlayToken(hit.purchaseToken);
+    }catch(e){}
+  }
+  const tab=document.querySelector('#tabs .tab[data-p="stats"]'); if(tab) tab.classList.toggle('locked',!!playApp&&!isPremium());
+  if(curPage==='stats') renderStats(); if(curPage==='data') renderPremiumCard();
+}
+async function buyPremium(){
+  const service=await playService();
+  if(!service){ toast('L’achat se fait dans l’application installée depuis Google Play.'); return; }
+  const request=new PaymentRequest([{supportedMethods:'https://play.google.com/billing',data:{sku:PREMIUM_SKU}}],{total:{label:'Total',amount:{currency:'EUR',value:'0'}}});
+  let response;
+  try{ response=await request.show(); }catch(e){ if(e&&e.name!=='AbortError') toast('Achat impossible pour le moment.'); return; }
+  const token=response&&response.details&&(response.details.purchaseToken||response.details.token);
+  const ok=await confirmPlayToken(token);
+  try{ await response.complete(ok?'success':'fail'); }catch(e){}
+  if(ok) toast(BILLING_API?'Premium activé':'Premium provisoire : 48 h (confirmation serveur pas encore en place)');
+  else toast('Abonnement non confirmé.');
+  renderStats(); renderPremiumCard();
+}
+function renderPremiumWall(){
+  const price=premiumPrice||'environ 1 € / mois';
+  $('premiumWall').innerHTML=`<h2>Statistiques Premium</h2>
+    <p>Les graphiques, les comparaisons et le journal détaillé font partie de l’abonnement. <b>${esc(price)}</b>, encaissé par Google Play. Tu arrêtes quand tu veux dans le Play Store. Livres, séries et suivi de lecture restent gratuits.</p>
+    ${BILLING_API?'':'<p class="small mut">La confirmation automatique de l’achat n’est pas encore branchée. Sans elle, Google Play rembourse un paiement au bout de 3 jours. En attendant, un achat reconnu ici ouvre les statistiques pendant 48 h.</p>'}
+    <div class="row"><button class="btn" type="button" data-premium="buy">S’abonner</button><button class="btn sec" type="button" data-premium="restore">J’ai déjà payé</button></div>`;
+}
+function renderPremiumCard(){
+  const el=$('premiumInfo'), act=$('premiumActions'), note=$('premiumNote'); if(!el) return;
+  if(!playApp){
+    el.textContent='Sur ce site, tout est gratuit, y compris les statistiques. Tes livres restent sur cet appareil. L’application Android (Google Play) est gratuite aussi ; les statistiques détaillées y sont proposées avec un abonnement d’environ 1 € par mois, payé à Google Play.';
+    act.innerHTML=''; note.textContent=''; return;
+  }
+  const p=readPremium();
+  if(isPremium()){
+    el.textContent=p.owner?'Premium est inclus sur cet appareil : une bibliothèque y était déjà enregistrée.':(p.source==='provisoire'?'Premium provisoire sur cet appareil, en attendant la confirmation de l’achat.':'Premium est actif sur cet appareil.');
+    act.innerHTML='<button class="btn sec sm" type="button" data-premium="restore">Vérifier l’abonnement</button>';
+    note.textContent=p.owner?'':(BILLING_API?'':'Sans serveur de confirmation, Google peut rembourser l’achat au bout de 3 jours.');
+    return;
+  }
+  el.textContent='Dans cette application, les statistiques détaillées font partie de l’abonnement Premium'+(premiumPrice?' ('+premiumPrice+')':' (environ 1 € par mois)')+'. Le prix affiché par Google Play fait foi. Le reste de l’application est gratuit.';
+  act.innerHTML='<button class="btn" type="button" data-premium="buy">S’abonner</button><button class="btn sec" type="button" data-premium="restore">Restaurer l’achat</button>';
+  note.textContent=BILLING_API?'':'La confirmation des achats n’est pas encore configurée : un paiement non confirmé est remboursé par Google au bout de 3 jours.';
+}
+function premiumClick(e){
+  const b=e.target.closest('[data-premium]'); if(!b) return;
+  if(b.dataset.premium==='buy') buyPremium(); else refreshPremium().then(()=>{ if(isPremium()) toast('Premium à jour'); else toast('Aucun abonnement actif trouvé'); });
+}
+
 /* ---------- Stats ---------- */
 function periodMonths(p){ const cur=todayISO().slice(0,7); if(p==='last12'){ const o=[]; for(let i=11;i>=0;i--) o.push(ymAdd(cur,-i)); return o; }
   return Array.from({length:12},(_,i)=>p+'-'+String(i+1).padStart(2,'0')); }
 let statsGrow=false, chMode=uiPref('chMode','type');
 function renderStats(){
+  const ok=isPremium();
+  const wall=$('premiumWall'), body=$('statsBody');
+  if(wall&&body){ wall.classList.toggle('hidden',ok); body.classList.toggle('hidden',!ok); }
+  const tab=document.querySelector('#tabs .tab[data-p="stats"]'); if(tab) tab.classList.toggle('locked',!!playApp&&!ok);
+  if(!ok){ renderPremiumWall(); return; }
   const cur=todayISO().slice(0,7), cy=+cur.slice(0,4), gm=goalM(), gy=goalY();
   const years=new Set([cy]); LB().forEach(b=>{ if(b.read&&b.dateRead) years.add(+b.dateRead.slice(0,4)); });
   const ys=[...years].sort((a,b)=>b-a); const sel=$('stPeriod').value||String(cy);
@@ -2411,7 +2557,7 @@ function renderRel(){ const el=$('relList'); if(!el) return; const items=relView
     <div class="small mut">Séries de « ${esc(libName())} » · chaque mardi matin · sources : Wikipédia, BnF, et Apify/web si activé (automatique du mardi uniquement)</div></div><button type="button" class="btn sec sm" id="btnRelRefresh"${relBusy?' disabled':''}>${relBusy?'…':'Actualiser'}</button></div>
     <details class="card small" style="margin-top:10px"><summary>Aide · sources et Apify (optionnel)</summary>
     <p class="mut">Les dates viennent d’abord de Wikipédia et de la BnF. Si une série reste sans date, le contrôle automatique du mardi peut — uniquement si tu l’actives — chercher sur le web via Apify et afficher la date avec la mention « Apify/web · à vérifier » et son lien source. L’application elle-même n’appelle jamais Apify et ne contient aucun jeton Apify.</p>
-    <p class="mut"><b>Pour activer :</b> dans Apify, ouvre <i>Settings → API &amp; Integrations</i> (console Apify → <i>Settings</i> → <i>Integrations</i>) et copie ton jeton API personnel. Puis, sur GitHub, dans le dépôt <code>ma-bibliotheque</code> : <i>Settings → Secrets and variables → Actions → New repository secret</i>, nom <code>APIFY_TOKEN</code>, valeur = ce jeton. Le secret <code>GIST_TOKEN</code> (portée « gist ») reste nécessaire pour le contrôle du mardi. Sans <code>APIFY_TOKEN</code>, rien ne change : l’enrichissement est simplement ignoré. Ne colle jamais ce jeton dans l’application.</p>
+    <p class="mut">Pour tout le monde, le bouton Actualiser (et l’ouverture de l’app le mardi) suffit. L’enrichissement Apify et le contrôle GitHub du mardi ne concernent que la personne qui héberge le dépôt : secrets <code>GIST_TOKEN</code> et, en option, <code>APIFY_TOKEN</code>, jamais dans l’application.</p>
     <p class="mut">Pour une série sans date, le lien « Rechercher sur le web ↗ » ouvre une simple recherche dans ton navigateur, sans jeton ni envoi de données.</p></details>`;
   if(!items.length) h+=`<div class="empty"><h3>Aucune série à suivre</h3><p>Ajoute des tomes d’une série (avec leur numéro) dans « ${esc(libName())} » : leurs prochaines sorties apparaîtront ici.</p></div>`;
   const sec=(t,list,n)=>list.length?`<div class="relsec">${t}${n?` <span class="bdg">${n}</span>`:''}</div>`+list.map(relCard).join(''):'';
@@ -2459,7 +2605,7 @@ function relClick(e){ const rw=e.target.closest('[data-rw]'); if(rw){ const c=rw
 function relImg(e){ const im=e.target; if(!(im instanceof HTMLImageElement)||!im.closest('.rcv')) return; const bad=e.type==='error'||im.naturalWidth<10;
   if(!bad){ im.classList.add('ok'); return; } const c=(im.dataset.c||'').split(' ').filter(Boolean), i=(+im.dataset.i||0)+1; if(i<c.length){ im.dataset.i=i; im.src=c[i]; } else im.remove(); }
 
-function renderPage(p){ if(p==='home') renderHome(); if(p==='lib') renderLib(); if(p==='series') renderSeries(); if(p==='stats') renderStats(); if(p==='data'){ renderSync(); renderLibCard(); renderGoals(); renderBackup(); } }
+function renderPage(p){ if(p==='home') renderHome(); if(p==='lib') renderLib(); if(p==='series') renderSeries(); if(p==='stats') renderStats(); if(p==='data'){ renderSync(); renderPremiumCard(); renderLibCard(); renderGoals(); renderBackup(); } }
 function renderAll(){ clearTimeout(rerT); relMemo=null; relBadges(); renderLibSw(); serSoft=true; renderPage(curPage); serSoft=false; if(curPage!=='home') renderHome(); fillDatalists(); if(detailOpen()) renderDetail(); if(curPage!=='lib'&&curPage!=='home') $('hEyebrow').textContent=eyebrowFor(curPage); }
 
 /* ---------- Bibliothèques : sélecteur & renommage ---------- */
@@ -2555,6 +2701,8 @@ function clearFilters(){ ['q','fType','fRead','fStatus','fSeries','fFormat'].for
 
 /* ---------- Init ---------- */
 function init(){
+  grantOwnerPremiumIfExisting();
+  playApp=detectPlayApp();
   load(); phInit(); setTimeout(storePersist,3000); { const l=uiPref('lib','l1'); curLib=LIB_IDS.includes(l)?l:'l1'; }
   $('f_type').innerHTML=TYPES.map(t=>`<option>${t}</option>`).join('');
   $('fType').innerHTML='<option value="">Type</option>'+TYPES.map(t=>`<option>${t}</option>`).join('');
@@ -2655,6 +2803,8 @@ function init(){
     const t=Date.now(); inc.books.forEach(b=>{ b.updatedAt=Math.max(b.updatedAt,t); delete inc.tomb.b[b.id]; }); // restauré = plus récent que les suppressions
     DB=cur; backupNow('restauration'); DB=inc; commit(); renderAll(); renderBackup(); toast('Sauvegarde restaurée : '+inc.books.length+' livres'); });
   $('verInfo').textContent='Ma bibliothèque v'+APP_VERSION+' · données v'+DATA_VERSION; if(!uiPref('bkSince',0)) setUiPref('bkSince',Date.now());
+  const wall=$('premiumWall'), card=$('premiumCard'); if(wall) wall.addEventListener('click',premiumClick); if(card) card.addEventListener('click',premiumClick);
+  refreshPremium();
   initGestures(); fillForm(null); curPage=''; applySortPref(); renderLibSw();
   show('home'); requestAnimationFrame(moveInd);
   initSync();
