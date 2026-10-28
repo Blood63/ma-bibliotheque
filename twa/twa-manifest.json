@@ -1,0 +1,41 @@
+{
+  "packageId": "io.github.blood63.mabibliotheque",
+  "host": "blood63.github.io",
+  "name": "Ma bibliothèque",
+  "launcherName": "Bibliothèque",
+  "display": "standalone",
+  "themeColor": "#070D22",
+  "themeColorDark": "#070D22",
+  "navigationColor": "#070D22",
+  "navigationColorDark": "#070D22",
+  "navigationDividerColor": "#070D22",
+  "navigationDividerColorDark": "#070D22",
+  "backgroundColor": "#070D22",
+  "enableNotifications": false,
+  "startUrl": "/ma-bibliotheque/",
+  "iconUrl": "https://blood63.github.io/ma-bibliotheque/icon-512.png",
+  "maskableIconUrl": "https://blood63.github.io/ma-bibliotheque/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "4.5.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://blood63.github.io/ma-bibliotheque/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": {
+      "enabled": true
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
