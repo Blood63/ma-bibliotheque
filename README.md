@@ -47,6 +47,15 @@ Licences des composants embarqués : `vendor/LICENSE-*` (barcode-detector, zxing
 - Demande de stockage persistant (le navigateur n’efface pas les données pour faire de la place).
 - Liens d’action plus faciles à toucher sur mobile.
 
+## Nouveautés 4.5
+
+Aucune donnée ne change : version de maintenance (sécurité, robustesse, tests).
+
+- **Google Books mis en pause après un 429** (« trop de requêtes ») : l’appli arrête d’interroger Google Books pendant au moins 15 minutes (durée du `Retry-After` si plus longue, plafonnée à 1 h), pour la recherche ISBN comme pour la recherche par titre ; les autres sources (Open Library, BnF, Sudoc, AniList) continuent. La pause n’est gardée qu’en mémoire (pas enregistrée).
+- **Politique de sécurité du contenu (CSP)** : une balise `<meta http-equiv="Content-Security-Policy">` limite les connexions aux seules sources utilisées (Open Library, BnF, Sudoc, Google Books, AniList, Wikipédia, GitHub / gist) ; aucun script externe, aucun `eval`, ni frame ni objet. Les couvertures restent autorisées depuis n’importe quelle origine https (elles viennent de plusieurs sites). Si une nouvelle source est ajoutée un jour, il faut aussi l’ajouter dans `connect-src` (le test `tests/e2e.test.js` le vérifie).
+- **Tests de bout en bout dans GitHub Actions** (`tests/e2e.test.js`, Chrome sans interface, UTC et Europe/Paris) : données 100 % fictives, réseau et GitHub simulés. Couvre chargement, CSP, pause Google Books, noms accessibles des boutons, synchro à deux appareils, hors ligne.
+- **Accessibilité** : vérification automatique que les boutons des fiches, de la barre de sélection et des formulaires ont un nom accessible (la fiche fermée reste masquée aux lecteurs d’écran).
+
 ## Nouveautés 4.4
 
 Tout est **facultatif et additif** : un livre sans date, sans nombre de pages ni citation fonctionne partout (stats, tri, « En cours »). Les nouveaux champs (`pages`, `reading`, `readStart`, `endExact`, `reads`, `quotes`, `prio`, `price`, `url`) sont ignorés mais conservés par les anciennes versions.

@@ -2,6 +2,11 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
+<!-- v4.5 : politique de sécurité du contenu (CSP), audit de TOUTES les origines contactées.
+     connect-src = uniquement les sources de recherche ISBN (Open Library, BnF, Sudoc, Google Books, AniList), « Prochaines sorties » (Wikipédia, BnF) et la synchro (api.github.com : le jeton GitHub ne peut partir que là ; gist.githubusercontent.com : lecture des gros fichiers du gist).
+     img-src = https: partout : les couvertures viennent d'Open Library/archive.org (redirections), Amazon, Google Books, BnF, AniList, ou d'une adresse collée par l'utilisateur ; data:/blob: = photos et aperçus. Les scripts sont ceux de la page + le module WebAssembly de lecture de code-barres embarqué (vendor/, 'wasm-unsafe-eval').
+     style-src 'unsafe-inline' : styles en ligne de l'application. Polices : fonts.googleapis.com (feuille) + fonts.gstatic.com (fichiers). Aucun cadre, objet ni <base> externe. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob:; connect-src 'self' https://openlibrary.org https://catalogue.bnf.fr https://www.sudoc.fr https://www.googleapis.com https://graphql.anilist.co https://fr.wikipedia.org https://api.github.com https://gist.githubusercontent.com; worker-src 'self' blob:; frame-src 'none'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#070d22">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -918,7 +923,7 @@ button.pill.dir{padding:7px 11px;font-weight:700;color:var(--gold2)}
 'use strict';
 const KEY = 'maBibliotheque.v1';
 const DATA_VERSION = 3;
-const APP_VERSION = '4.4.0';
+const APP_VERSION = '4.5.0';
 const TYPES = ['Livre','Manga','BD','Autre'];
 const TYPE_ICON = {Livre:'📕',Manga:'🍥',BD:'💬',Autre:'📄'};
 const STATUS_LBL = {possede:'Possédé',envie:'Liste d’envies'};
@@ -1354,7 +1359,14 @@ async function lookupOL(isbn){ const ol=await fetchJSON('https://openlibrary.org
 async function lookupOLSearch(isbn){ const j=await fetchJSON('https://openlibrary.org/search.json?isbn='+isbn+'&fields=title,subtitle,author_name,publisher,cover_i&limit=1',7000); const d=j&&j.docs&&j.docs[0]; if(!d||!d.title) return null;
   return {title:d.title+(d.subtitle&&!/^\d+$/.test(d.subtitle)?' : '+d.subtitle:''),rawTitle:d.title,author:(d.author_name||[]).join(', '),cover:d.cover_i?'https://covers.openlibrary.org/b/id/'+d.cover_i+'-M.jpg':'',publisher:(d.publisher||[])[0]||'',genre:'',src:'Open Library'}; }
 /* Google Books (sans clé : souvent bloqué par le quota, erreur 429 ignorée) */
-async function lookupGB(isbn){ const g=await fetchJSON('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn,7000); const v=g&&g.items&&g.items[0]&&g.items[0].volumeInfo; if(!v||!v.title) return null;
+/* v4.5 : Google Books (quota anonyme) — après une réponse 429, on ne l'interroge plus pendant une pause (15 min, ou Retry-After, 1 h max) ; mémoire de session seulement, rien n'est enregistré.
+   Les autres catalogues prennent le relais comme avant. */
+const GB_COOL={until:0};
+function gbPaused(){ return Date.now()<GB_COOL.until; }
+async function fetchGB(u,ms=9000){ if(gbPaused()) return null; const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),ms); let r; try{ r=await fetch(u,{signal:ctl.signal}); }catch(e){ NET.err++; return null; } finally{ clearTimeout(t); } NET.ok++;
+  if(r.status===429){ const ra=+r.headers.get('Retry-After'); GB_COOL.until=Date.now()+Math.min(Math.max(ra>0?ra*1000:0,15*60e3),60*60e3); return null; }
+  if(!r.ok) return null; try{ return await r.json(); }catch(e){ return null; } }
+async function lookupGB(isbn){ const g=await fetchGB('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn,7000); const v=g&&g.items&&g.items[0]&&g.items[0].volumeInfo; if(!v||!v.title) return null;
   return {title:v.title+(v.subtitle&&!/^\d+$/.test(v.subtitle)?' : '+v.subtitle:''),rawTitle:v.title,author:(v.authors||[]).join(', '),cover:((v.imageLinks&&(v.imageLinks.thumbnail||v.imageLinks.smallThumbnail))||'').replace(/^http:/,'https:').replace('&edge=curl',''),publisher:v.publisher||'',pages:v.pageCount||0,genre:(v.categories||[])[0]||'',summary:stripTxt(v.description||''),year:(v.publishedDate||'').slice(0,4),isbn:isbn13(v.industryIdentifiers?((v.industryIdentifiers.find(x=>x.type==='ISBN_13')||v.industryIdentifiers.find(x=>x.type==='ISBN_10')||{}).identifier||''):''),src:'Google Books'}; }
 /* BnF (catalogue général, SRU UNIMARC) : très complet pour les livres, BD et mangas publiés en France */
 const MXC='info:lc/xmlns/marcxchange-v2';
@@ -1460,7 +1472,7 @@ async function searchOL(title,author){ const par=new URLSearchParams({limit:'8',
   return j.docs.filter(d=>d.title).map(d=>{ const isbns=(d.isbn||[]).map(x=>isbn13(x)).filter(x=>/^\d{13}$/.test(x)&&isbnValid(x)); const isbn=isbns.find(x=>/^(9782|97910)/.test(x))||isbns[0]||'';
     const sp=splitSeries(d.title); return {title:sp?'':d.title,series:sp?sp.series:'',volume:sp?sp.volume:null,author:(d.author_name||[]).join(', '),cover:d.cover_i?'https://covers.openlibrary.org/b/id/'+d.cover_i+'-M.jpg':'',publisher:(d.publisher||[])[0]||'',year:d.first_publish_year?String(d.first_publish_year):'',isbn,genre:'',type:'',summary:'',src:'Open Library'}; }); }
 async function searchGB(title,author){ const q=[title?'intitle:'+title:'',author?'inauthor:'+author:''].filter(Boolean).join('+'); if(!q) return [];
-  const j=await fetchJSON('https://www.googleapis.com/books/v1/volumes?q='+encodeURIComponent(q).replace(/%2B/g,'+')+'&maxResults=6&langRestrict=fr&printType=books',8000); if(!j||!j.items) return [];
+  const j=await fetchGB('https://www.googleapis.com/books/v1/volumes?q='+encodeURIComponent(q).replace(/%2B/g,'+')+'&maxResults=6&langRestrict=fr&printType=books',8000); if(!j||!j.items) return [];
   return j.items.map(it=>{ const v=it.volumeInfo||{}; if(!v.title) return null; const o={title:v.title,rawTitle:v.title,author:(v.authors||[]).join(', '),cover:((v.imageLinks&&(v.imageLinks.thumbnail||v.imageLinks.smallThumbnail))||'').replace(/^http:/,'https:').replace('&edge=curl',''),publisher:v.publisher||'',pages:v.pageCount||0,genre:(v.categories||[])[0]||'',summary:stripTxt(v.description||''),year:(v.publishedDate||'').slice(0,4),isbn:isbn13(v.industryIdentifiers?((v.industryIdentifiers.find(x=>x.type==='ISBN_13')||v.industryIdentifiers.find(x=>x.type==='ISBN_10')||{}).identifier||''):'') ,src:'Google Books'}; const sp=splitSeries(o.title); if(sp){ o.series=sp.series; o.volume=sp.volume; } return o; }).filter(Boolean); }
 async function searchAniList(title){ const a=await lookupAniList(title); if(!a) return []; return [{title:'',series:title.trim(),volume:null,author:'',cover:a.cover,publisher:'',year:a.year||'',isbn:'',genre:'',type:'Manga',summary:a.summary,total:a.volumes||null,src:'AniList'}]; }
 function applySearchResult(r){ if(!r) return;
