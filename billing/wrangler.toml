@@ -1,0 +1,12 @@
+name = "mabibliotheque-premium"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# Le compte de service Google (JSON) ne va PAS ici.
+# Après déploiement : wrangler secret put PLAY_SERVICE_ACCOUNT
+# Colle le fichier JSON entier du compte de service (une seule ligne ou tel quel).
+
+[vars]
+PACKAGE_NAME = "io.github.blood63.mabibliotheque"
+PRODUCT_ID = "premium_mensuel"
+ALLOWED_ORIGIN = "https://blood63.github.io"

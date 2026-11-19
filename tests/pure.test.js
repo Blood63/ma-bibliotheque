@@ -8,7 +8,7 @@ const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const REL = require(path.join(ROOT, 'releases.js'));
 
 function slice(from, to) { const i = html.indexOf(from), j = html.indexOf(to, i + 1); if (i < 0 || j < 0) throw new Error('repère introuvable : ' + (i < 0 ? from : to)); return html.slice(i, j); }
-const code = slice("'use strict';\nconst KEY", '/* ---------- Agrégats') + '\n' + slice('/* ---------- ISBN', '\nconst isFrIsbn');
+const code = slice("const KEY = 'maBibliotheque.v1'", '/* ---------- Agrégats') + '\n' + slice('/* ---------- ISBN', '\nconst isFrIsbn');
 const store = {};
 const sandbox = {
   console, Intl, Date, Math, JSON, Map, Set, WeakMap, Promise, URL,
@@ -17,7 +17,7 @@ const sandbox = {
   window: {}, navigator: {}, setTimeout, clearTimeout, toast() {}, scheduleSync() {}, curLib: 'l1'
 };
 vm.createContext(sandbox);
-vm.runInContext(code + '\n;globalThis.__T={baseKey,serKey,isbn13,mergeDB,normBook,normGoals,migrate,emptyDB,phKeyOk,phWanted,phPlan,phKeyOfFile,phFile,isThumb,safeImg,setDB:d=>{DB=d;},PH,applyStart,applyPage,applyFinish,applyStop,daysBetween,readDays};', sandbox, { filename: 'index.html' });
+vm.runInContext("'use strict';\n" + code + '\n;globalThis.__T={baseKey,serKey,isbn13,mergeDB,normBook,normGoals,migrate,emptyDB,phKeyOk,phWanted,phPlan,phKeyOfFile,phFile,isThumb,safeImg,setDB:d=>{DB=d;},PH,applyStart,applyPage,applyFinish,applyStop,daysBetween,readDays,premiumAccess,grantOwnerPremiumIfExisting,PREMIUM_KEY,KEY};', sandbox, { filename: 'index.html' });
 const A = sandbox.__T;
 
 let n = 0, fail = 0;
@@ -149,6 +149,24 @@ t('v4.4 : mergeDB garde les nouveaux champs du livre le plus récent', () => {
   const L = A.emptyDB(), R = A.emptyDB(); L.books = [mk({}, 5)]; R.books = [mk({ reading: { since: '', page: 7, at: 9 }, pages: 100, quotes: [{ id: 'q', text: 'hello', at: 1 }] }, 8)];
   const m = A.mergeDB(L, R).books[0]; assert.strictEqual(m.reading.page, 7); assert.strictEqual(m.pages, 100); assert.strictEqual(m.quotes[0].text, 'hello');
   const m2 = A.mergeDB(R, L).books[0]; assert.strictEqual(m2.reading.page, 7);
+});
+
+t('premium : site web ouvert, app Play fermée sans abo, grâce et propriétaire', () => {
+  assert.strictEqual(A.premiumAccess({ play: false }), true);
+  assert.strictEqual(A.premiumAccess({ play: true, now: 100 }), false);
+  assert.strictEqual(A.premiumAccess({ play: true, active: true, now: 100 }), true);
+  assert.strictEqual(A.premiumAccess({ play: true, owner: true, now: 100 }), true);
+  assert.strictEqual(A.premiumAccess({ play: true, graceUntil: 200, now: 100 }), true);
+  assert.strictEqual(A.premiumAccess({ play: true, graceUntil: 50, now: 100 }), false);
+});
+t('premium propriétaire : seulement si une bibliothèque ou un jeton existait déjà', () => {
+  A.grantOwnerPremiumIfExisting();
+  assert.strictEqual(sandbox.localStorage.getItem(A.PREMIUM_KEY), null);
+  sandbox.localStorage.setItem(A.KEY, JSON.stringify({ version: 3, books: [{ id: 'a' }] }));
+  A.grantOwnerPremiumIfExisting();
+  const o = JSON.parse(sandbox.localStorage.getItem(A.PREMIUM_KEY));
+  assert.strictEqual(o.owner, true);
+  assert.ok(!('books' in o));
 });
 
 console.log('\n' + (n - fail) + ' / ' + n + ' tests OK');
