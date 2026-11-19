@@ -47,7 +47,7 @@ Fichiers préparés dans le dépôt :
 
 - `twa/twa-manifest.json` — projet Bubblewrap, facturation Play activée. Le nom de paquet est `io.github.blood63.mabibliotheque` (à ne plus changer après la première publication).
 - `.well-known/assetlinks.json` — lien entre le site et l’application. L’empreinte SHA-256 est un **placeholder** (que des zéros) : à remplacer par celle de ta clé de signature.
-- `billing/worker.js` — petit serveur qui confirme l’abonnement auprès de Google et accuse réception. Sans lui, Play rembourse un achat non confirmé au bout de 3 jours. L’adresse du serveur se met dans `BILLING_API` dans `index.html` (vide pour l’instant).
+- `billing/worker.js` — petit serveur qui confirme l’abonnement auprès de Google et accuse réception. Sans lui, Play rembourse un achat non confirmé au bout de 3 jours. L’adresse du serveur se met dans `BILLING_API` dans `index.html` (vide pour l’instant). Il faudra alors ajouter cette origine dans `connect-src` de la politique de sécurité (CSP), sinon le navigateur bloque l’appel.
 - `confidentialite.html` — page à indiquer dans la fiche Play.
 
 Ce dépôt est un site de projet (`blood63.github.io/ma-bibliotheque/`). Android cherche `assetlinks.json` à la **racine du domaine** (`https://blood63.github.io/.well-known/assetlinks.json`), pas dans le sous-dossier. Il faut soit copier le fichier dans un dépôt `blood63.github.io`, soit utiliser un nom de domaine à toi pointé sur ce site.
@@ -60,7 +60,16 @@ La checklist Play Console (compte développeur, paiement, abonnement, clé, fich
 
 ## Pour modifier le code
 
-Un seul fichier `index.html`, plus `releases.js` et `sw.js`. Pas d’étape de build. Tests : `node tests/pure.test.js`.
+Un seul fichier `index.html`, plus `releases.js` et `sw.js`. Pas d’étape de build. Tests : `node tests/pure.test.js` et `node tests/e2e.test.js` (Chrome, données fictives).
+
+## Nouveautés 4.5 (maintenance)
+
+Aucune donnée ne change.
+
+- **Google Books mis en pause après un 429** (« trop de requêtes ») : l’appli arrête d’interroger Google Books pendant au moins 15 minutes (durée du `Retry-After` si plus longue, plafonnée à 1 h), pour la recherche ISBN comme pour la recherche par titre ; les autres sources (Open Library, BnF, Sudoc, AniList) continuent. La pause n’est gardée qu’en mémoire (pas enregistrée).
+- **Politique de sécurité du contenu (CSP)** : une balise limite les connexions aux seules sources utilisées (Open Library, BnF, Sudoc, Google Books, AniList, Wikipédia, GitHub / gist) ; aucun script externe, aucun `eval`, ni frame ni objet. Les couvertures restent autorisées depuis n’importe quelle origine https. Si une nouvelle source est ajoutée, il faut aussi l’ajouter dans `connect-src` (le test `tests/e2e.test.js` le vérifie).
+- **Tests de bout en bout** dans GitHub Actions (`tests/e2e.test.js`, Chrome sans interface, UTC et Europe/Paris) : données fictives, réseau et GitHub simulés. Couvre chargement, CSP, pause Google Books, noms accessibles des boutons, synchro à deux appareils, hors ligne.
+- **Accessibilité** : vérification automatique que les boutons des fiches, de la barre de sélection et des formulaires ont un nom accessible (la fiche fermée reste masquée aux lecteurs d’écran).
 
 Les clés de stockage (`maBibliotheque.v1` et la suite) ne changent pas d’une version à l’autre : une bibliothèque déjà présente sur un appareil est conservée.
 

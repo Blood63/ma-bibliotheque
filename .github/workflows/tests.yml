@@ -20,3 +20,22 @@ jobs:
         run: node tests/pure.test.js
       - name: Syntaxe sw.js / releases.js
         run: node --check sw.js && node --check releases.js
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [UTC, Europe/Paris]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Installer puppeteer-core (Chrome fourni par le runner)
+        run: npm i --no-save --no-package-lock puppeteer-core@25
+      - name: Tests de bout en bout (données fictives, réseau simulé)
+        env:
+          TZ: ${{ matrix.tz }}
+          CHROME: /usr/bin/google-chrome
+        run: node tests/e2e.test.js
